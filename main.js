@@ -83,13 +83,11 @@ const utils = {
 let app = {
   el: '#app',
   data: {
-    title:'Vue-Boilerplate',
+    title: 'Vue-Boilerplate',
     content: 'Fill this page with <i>whatever</i> you\'re going to develop.<br><b>Then enjoy!</b>'
   },
-  methods: {
-
-  },
-  'mounted': () => {
+  methods: {},
+  'mounted': function () {
     const self = this;
     console.log('app mounted');
     setTimeout(() => {
