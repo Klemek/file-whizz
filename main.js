@@ -90,9 +90,10 @@ let app = {
 
   },
   'mounted': () => {
+    const self = this;
     console.log('app mounted');
     setTimeout(() => {
-      document.getElementById('app').setAttribute('style', '');
+      self.$el.setAttribute('style', '');
     });
   }
 };
