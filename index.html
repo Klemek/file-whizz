@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>Change this you moron</title>
     <link rel="stylesheet" href="style.css">
-    <script type="text/javascript" src="lib/vue.min.js"></script>
+    <script type="text/javascript" src="libs/vue.global.js"></script>
     <script type="text/javascript" src="main.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- card related -->
@@ -25,7 +25,7 @@
         <br>
         <p v-html="content"></p>
         <br>
-        <small><a href="https://twitter.com/_klemek" target="_blank">@Klemek</a> - <a href="" target="_blank">Github Repository</a> - 2019</small>
+        <small><a href="https://twitter.com/_klemek" target="_blank">@Klemek</a> - <a href="" target="_blank">Github Repository</a> - {{currentYear}}</small>
     </main>
 </body>
 </html>
