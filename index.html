@@ -51,7 +51,7 @@
       <br>
       <input type="file" @change="fileChange" />
       <br>
-      <input type="submit" @click.prevent="start" :disabled="!data || !remoteId" />
+      <input type="submit" @click.prevent="start" :disabled="!data || !remoteId || !connectionOpen" />
     </div>
     <br />
     <small class="footer">

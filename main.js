@@ -44,7 +44,7 @@ const app = createApp({
     },
     connect() {
       if (this.remoteId) {
-        this.connection = this.peer.connect(this.remoteId);
+        this.initConnection(this.peer.connect(this.remoteId));
       }
     },
     initPeer() {
@@ -52,11 +52,11 @@ const app = createApp({
         config: {
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
-            {
-              urls: [`turn:127.0.0.1:3478`, `turns:127.0.0.1:5349`],
-              username: "user",
-              credential: "pass",
-            },
+            // {
+            //   urls: [`turn:127.0.0.1:3478`, `turns:127.0.0.1:5349`],
+            //   username: "user",
+            //   credential: "pass",
+            // },
           ],
         },
       });
@@ -66,24 +66,40 @@ const app = createApp({
       this.peer.on("disconnected", this.peerDisconnected);
       this.peer.on("error", this.peerError);
     },
+    initConnection(conn) {
+      conn.on("open", () => {
+        console.log("connOpen");
+        this.connection = conn;
+        this.connection.on("close", this.connClose);
+        this.connection.on("error", this.connError);
+        this.connection.on("data", this.connData);
+      });
+    },
     peerOpen(id) {
+      console.log("peerOpen", id);
       this.localId = id;
     },
     peerConnection(conn) {
-      this.connection = conn;
+      console.log("peerConnection");
+      this.initConnection(conn);
       this.remoteId = conn.peer;
     },
     peerClose() {
+      console.log("peerClose");
       this.peer = null;
       setTimeout(this.initPeer);
     },
     peerDisconnected() {
+      console.log("peerDisconnected");
       this.peer.reconnect();
     },
     peerError(err) {
+      console.log("peerError", err);
       // TODO handle error
     },
     connData(data) {
+      console.log("connData");
+      console.log(data.type);
       switch (data.type) {
         case "start":
           ReadableStream({
@@ -107,14 +123,14 @@ const app = createApp({
           break;
       }
     },
-    connOpen() {
-      // TODO handle conn open
-    },
     connClose() {
+      console.log("connClose");
       this.connection = null;
+      this.connectionOpen = false;
       // TODO handle conn close
     },
-    connError() {
+    connError(err) {
+      console.log("connError", err);
       // TODO handle error
     },
     fileChange(event) {
@@ -143,11 +159,13 @@ const app = createApp({
       this.connection.send({
         type: "start",
       });
+      console.log("start");
       for (
         let index = 0;
         index < this.data.byteLength;
         index += MAX_CHUNK_SIZE
       ) {
+        console.log("chunk");
         this.connection.send({
           type: "chunk",
           bytes: this.data.slice(
@@ -156,6 +174,7 @@ const app = createApp({
           ),
         });
       }
+      console.log("end");
       this.connection.send({
         type: "end",
       });
