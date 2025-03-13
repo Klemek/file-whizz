@@ -1,8 +1,20 @@
-/* exported app */
-let app = {
+import { createApp } from "vue";
+
+const utils = {
+  updateIcons() {
+    lucide.createIcons({
+      nameAttr: "icon",
+      attrs: {
+        width: "1.1em",
+        height: "1.1em",
+      },
+    });
+  },
+};
+
+const app = createApp({
   data() {
     return {
-      title: "Vue-Boilerplate",
       content:
         "Fill this page with <i>whatever</i> you're going to develop.<br><b>Then enjoy!</b>",
     };
@@ -12,18 +24,21 @@ let app = {
       return new Date().getFullYear();
     },
   },
+  watch: {},
+  updated() {
+    utils.updateIcons();
+  },
+  mounted() {
+    setTimeout(this.showApp);
+    utils.updateIcons();
+  },
   methods: {
     showApp() {
       document.getElementById("app").setAttribute("style", "");
     },
   },
-  mounted: function () {
-    console.log("app mounted");
-    setTimeout(this.showApp);
-  },
-};
+});
 
 window.onload = () => {
-  app = Vue.createApp(app);
   app.mount("#app");
 };

@@ -1,31 +1,50 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <title><!-- TODO -->Change this you moron</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script type="text/javascript" src="main.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- card related -->
-    <!--
+  <meta charset="UTF-8" />
+  <!-- TODO: 1. rename app -->
+  <title>Change this you moron</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="material-colors.css" />
+  <script src="https://unpkg.com/lucide@0"></script>
+  <script type="importmap">
+      {
+        "imports": {
+          "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+        }
+      }
+    </script>
+  <script type="module" src="main.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- card related -->
+  <!--
     <meta name="twitter:card" content="summary_large_image">
     <meta property="og:title" content="">
-    <meta property="twitter:title" content="">
     <meta property="og:description" content="">
-    <meta property="twitter:description" content="">
     <meta property="og:image" content="https://.../preview_640x320.jpg">
-    <meta property="twitter:image" content="">
     <meta property="org:url" content="https://...">
     -->
 </head>
+
 <body>
-    <main id="app" style="display:none">
-        <h1>{{title}}</h1>
-        <br>
-        <p v-html="content"></p>
-        <br>
-        <small><a href="https://twitter.com/_klemek" target="_blank">@Klemek</a> - <a href="" target="_blank">Github Repository</a> - {{currentYear}}</small>
-    </main>
+  <main id="app" style="display: none">
+    <!-- TODO: 1. rename app -->
+    <h1>
+      <i icon="package"></i>
+      Vue-Boilerplate
+    </h1>
+    <br />
+    <p v-html="content"></p>
+    <br />
+    <small class="grey-500">
+      <i icon="at-sign"></i>&nbsp;<a href="https://github.com/klemek" target="_blank">klemek</a>
+      -
+      <!-- TODO: 1. rename app -->
+      <i icon="github"></i>&nbsp;<a href="https://github.com/klemek/vue-boilerplate" target="_blank">Repository</a>
+      - 2025
+    </small>
+  </main>
 </body>
+
 </html>
