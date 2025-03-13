@@ -4,10 +4,11 @@
 <head>
   <meta charset="UTF-8" />
   <!-- TODO: 1. rename app -->
-  <title>Change this you moron</title>
+  <title>File Whizz</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="material-colors.css" />
   <script src="https://unpkg.com/lucide@0"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script type="importmap">
       {
         "imports": {
@@ -31,11 +32,27 @@
   <main id="app" style="display: none">
     <!-- TODO: 1. rename app -->
     <h1>
-      <i icon="package"></i>
-      Vue-Boilerplate
+      <i icon="file-volume-2"></i>
+      File Whizz
     </h1>
     <br />
-    <p v-html="content"></p>
+    <div>
+      <label>Local ID</label><br>
+      <input readonly :value="localId" /><br><br>
+      <label>Remote ID</label><br>
+      <input v-model="remoteId" @change="connect">
+      <br>
+      <br>
+      Initialized: <b>{{ peer ? 'OK' : '...'}}</b><br>
+      Opened: <b>{{ localId ? 'OK' : '...'}}</b><br>
+      Connection: <b>{{ connection ? 'OK' : '...'}}</b><br>
+      File data: <b>{{ data ? 'OK' : '...'}}</b>
+      <br>
+      <br>
+      <input type="file" @change="fileChange" />
+      <br>
+      <input type="submit" @click.prevent="start" :disabled="!data || !remoteId" />
+    </div>
     <br />
     <small class="footer">
       <i icon="at-sign"></i>&nbsp;<a href="https://github.com/klemek" target="_blank">klemek</a>

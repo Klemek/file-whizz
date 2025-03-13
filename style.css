@@ -212,3 +212,7 @@ h6 .lucide {
 .footer {
   opacity: 50%;
 }
+
+input {
+  width: 100%;
+}
