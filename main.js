@@ -50,7 +50,14 @@ const app = createApp({
     initPeer() {
       this.peer = new Peer({
         config: {
-          iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
+          iceServers: [
+            { urls: "stun:stun.l.google.com:19302" },
+            {
+              urls: [`turn:127.0.0.1:3478`, `turns:127.0.0.1:5349`],
+              username: "user",
+              credential: "pass",
+            },
+          ],
         },
       });
       this.peer.on("open", this.peerOpen);
