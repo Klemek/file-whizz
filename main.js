@@ -44,21 +44,14 @@ const app = createApp({
     },
     connect() {
       if (this.remoteId) {
-        this.initConnection(this.peer.connect(this.remoteId));
+        this.initConnection(
+          this.peer.connect(this.remoteId, { reliable: true }),
+        );
       }
     },
     initPeer() {
       this.peer = new Peer({
-        config: {
-          iceServers: [
-            { urls: "stun:stun.l.google.com:19302" },
-            // {
-            //   urls: [`turn:127.0.0.1:3478`, `turns:127.0.0.1:5349`],
-            //   username: "user",
-            //   credential: "pass",
-            // },
-          ],
-        },
+        debug: 3,
       });
       this.peer.on("open", this.peerOpen);
       this.peer.on("connection", this.peerConnection);
@@ -126,7 +119,6 @@ const app = createApp({
     connClose() {
       console.log("connClose");
       this.connection = null;
-      this.connectionOpen = false;
       // TODO handle conn close
     },
     connError(err) {
