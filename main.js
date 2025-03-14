@@ -140,7 +140,6 @@ const app = createApp({
         index,
         bytes: this.data.slice(index, index + MAX_CHUNK_SIZE),
       });
-      console.log(this.data.slice(index, index + MAX_CHUNK_SIZE));
     },
     serverDone() {
       this.connection.send({
