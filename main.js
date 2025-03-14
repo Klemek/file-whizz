@@ -10,9 +10,14 @@ const utils = {
       },
     });
   },
+  bufferCopy(src, startSrc, dst, startDst, size) {
+    const viewSrc = new Uint8Array(src, startSrc, size);
+    const dstSrc = new Uint8Array(dst, startDst, size);
+    dstSrc.set(viewSrc);
+  },
 };
 
-const MAX_CHUNK_SIZE = 1024 * 1024; // 1024 KB
+const MAX_CHUNK_SIZE = 10 * 1024; // 10 KB
 
 const app = createApp({
   data() {
@@ -22,13 +27,37 @@ const app = createApp({
       remoteId: null,
       connection: null, // TODO multiple connections
       data: null, // TODO multiple file
-      fileStream: null,
+      buffer: null,
       fileName: null,
       fileSize: null,
       t0: new Date(),
+      received: [],
+      downloading: false,
     };
   },
-  computed: {},
+  computed: {
+    canConnect() {
+      return this.peer !== null && this.localId !== null;
+    },
+    isConnected() {
+      return this.connection !== null;
+    },
+    readyToDownload() {
+      return this.buffer !== null && !this.downloading;
+    },
+    isServer() {
+      return this.data !== null;
+    },
+    isClient() {
+      return this.isConnected && !this.isServer;
+    },
+    downloadProgress() {
+      return this.received.length * MAX_CHUNK_SIZE;
+    },
+    downloadTotal() {
+      return this.fileSize ?? 0;
+    },
+  },
   watch: {},
   updated() {
     utils.updateIcons();
@@ -43,13 +72,6 @@ const app = createApp({
   methods: {
     showApp() {
       document.getElementById("app").setAttribute("style", "");
-    },
-    connect() {
-      if (this.remoteId) {
-        this.initConnection(
-          this.peer.connect(this.remoteId, { reliable: true }),
-        );
-      }
     },
     initPeer() {
       this.peer = new Peer({
@@ -82,6 +104,7 @@ const app = createApp({
         this.connection.on("close", this.connClose);
         this.connection.on("error", this.connError);
         this.connection.on("data", this.connData);
+        this.serverInfo();
       });
     },
     peerOpen(id) {
@@ -96,43 +119,114 @@ const app = createApp({
     peerClose() {
       console.log("peerClose");
       this.peer = null;
-      // setTimeout(this.initPeer);
     },
     peerDisconnected() {
       console.log("peerDisconnected");
-      // this.peer.reconnect();
+      this.peer.reconnect();
     },
     peerError(err) {
       console.log("peerError", err);
       // TODO handle error
+      throw err;
+    },
+    createStream() {
+      this.buffer = new ArrayBuffer(this.fileSize);
+    },
+    serverInfo() {
+      this.connection.send({
+        type: "server-info",
+        fileName: this.data ? this.fileName : null,
+        fileSize: this.data ? this.fileSize : null,
+      });
+    },
+    serverSendData(index) {
+      const to = Math.min(this.fileSize, index + MAX_CHUNK_SIZE);
+      this.connection.send({
+        type: "server-chunk",
+        index,
+        bytes: this.data.slice(index, to),
+      });
+    },
+    serverDone() {
+      this.connection.send({
+        type: "server-done",
+      });
+    },
+    clientStartTransfer() {
+      this.downloading = true;
+      this.connection.send({
+        type: "client-start-transfer",
+      });
+    },
+    clientSeek() {
+      const indexes = [];
+      for (let index = 0; index < this.fileSize; index += MAX_CHUNK_SIZE) {
+        if (!this.received.includes(index)) {
+          indexes.push(index);
+        }
+      }
+      if (indexes.length) {
+        this.connection.send({
+          type: "client-seek",
+          indexes,
+        });
+        return true;
+      }
+      return false;
+    },
+    clientDone() {
+      this.connection.send({
+        type: "client-done",
+      });
+      const blob = new Blob([this.buffer], {
+        type: "application/octet-stream",
+      });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = this.fileName;
+      link.click();
     },
     connData(data) {
       console.log("connData");
       console.log(data.type);
       switch (data.type) {
-        case "start":
-          this.t0 = new Date();
+        case "server-info":
           this.fileName = data.fileName;
           this.fileSize = data.fileSize;
-          this.fileStream = streamSaver
-            .createWriteStream(this.fileName, {
-              size: this.fileSize,
-            })
-            .getWriter();
-          break;
-        case "chunk":
-          if (this.fileStream) {
-            this.fileStream.write(new Uint8Array(data.bytes));
+          if (this.fileName !== null) {
+            this.createStream();
           }
           break;
-        case "end":
-          if (this.fileStream) {
-            this.fileStream.close();
+        case "server-chunk":
+          utils.bufferCopy(
+            data.bytes,
+            0,
+            this.buffer,
+            data.index,
+            data.bytes.length,
+          );
+          this.received.push(data.index);
+          break;
+        case "server-done":
+          if (!this.clientSeek()) {
+            this.clientDone();
           }
-          console.log(new Date() - this.t0);
-          console.log(this.fileSize / (new Date() - this.t0));
+          break;
+        case "client-start-transfer":
+          for (let index = 0; index < this.fileSize; index += MAX_CHUNK_SIZE) {
+            this.serverSendData(index);
+          }
+          this.serverDone();
+          break;
+        case "client-seek":
+          data.indexes.forEach(this.serverSendData);
+          this.serverDone();
+          break;
+        case "client-done":
+          this.connection.close();
           break;
         default:
+          console.error("Invalid data type");
           break;
       }
     },
@@ -144,8 +238,16 @@ const app = createApp({
     connError(err) {
       console.log("connError", err);
       // TODO handle error
+      throw err;
     },
-    fileChange(event) {
+    onRemoteIdChange() {
+      if (this.remoteId) {
+        this.initConnection(
+          this.peer.connect(this.remoteId, { reliable: true }),
+        );
+      }
+    },
+    onFileChange(event) {
       console.log(event.target.files[0]);
       const file = event.target.files[0]; // TODO multiple files
       if (!file) {
@@ -157,43 +259,14 @@ const app = createApp({
       const reader = new FileReader();
       reader.onload = () => {
         this.data = reader.result;
+        if (this.isConnected) {
+          this.serverInfo();
+        }
       };
-      reader.onerror = (err) => {
-        console.error(err);
-      };
-      reader.onloadstart = () => {
-        console.log("reading");
-      };
-      reader.onloadend = () => {
-        console.log("read");
+      reader.onerror = () => {
+        // TODO handle file reading error
       };
       reader.readAsArrayBuffer(file); // TODO check ArrayBuffer.prototype.maxByteLength
-    },
-    start() {
-      this.connection.send({
-        type: "start",
-        fileName: this.fileName,
-        fileSize: this.fileSize,
-      });
-      console.log("start");
-      for (
-        let index = 0;
-        index < this.data.byteLength;
-        index += MAX_CHUNK_SIZE
-      ) {
-        console.log("chunk");
-        this.connection.send({
-          type: "chunk",
-          bytes: this.data.slice(
-            index * MAX_CHUNK_SIZE,
-            Math.min(this.data.byteLength, (index + 1) * MAX_CHUNK_SIZE),
-          ),
-        });
-      }
-      console.log("end");
-      this.connection.send({
-        type: "end",
-      });
     },
     initApp() {
       this.initPeer();

@@ -22,11 +22,14 @@ export default [
       "no-magic-numbers": "off",
       "sort-keys": "off",
       "no-warning-comments": "off",
+      "no-inline-comments": "off", // TODO remove
       "no-ternary": "off",
       "one-var": "off",
-      "max-statements": ["warn", 50],
+      "max-statements": ["warn", 200], // TODO remove
+      "max-lines-per-function": ["warn", 200], // TODO remove
       "max-params": ["warn", 5],
       "max-lines": "off",
+      "no-console": "off", // TODO remove
     },
   },
   {

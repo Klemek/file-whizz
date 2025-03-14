@@ -3,14 +3,11 @@
 
 <head>
   <meta charset="UTF-8" />
-  <!-- TODO: 1. rename app -->
   <title>File Whizz</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="material-colors.css" />
   <script src="https://unpkg.com/lucide@0"></script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/web-streams-polyfill@2.0.2/dist/ponyfill.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/streamsaver@2.0.3/StreamSaver.min.js"></script>
   <script type="importmap">
       {
         "imports": {
@@ -20,19 +17,12 @@
     </script>
   <script type="module" src="main.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- card related -->
-  <!--
-    <meta name="twitter:card" content="summary_large_image">
-    <meta property="og:title" content="">
-    <meta property="og:description" content="">
-    <meta property="og:image" content="https://.../preview_640x320.jpg">
-    <meta property="org:url" content="https://...">
-    -->
+  <meta property="og:title" content="File Whizz">
+  <meta property="og:description" content="Make that file buzzing through air">
 </head>
 
 <body>
   <main id="app" style="display: none">
-    <!-- TODO: 1. rename app -->
     <h1>
       <i icon="file-volume-2"></i>
       File Whizz
@@ -40,27 +30,31 @@
     <br />
     <div>
       <label>Local ID</label><br>
-      <input readonly :value="localId" /><br><br>
-      <label>Remote ID</label><br>
-      <input v-model="remoteId" @change="connect">
+      <input readonly :value="localId" />
       <br>
       <br>
-      Initialized: <b>{{ peer ? 'OK' : '...'}}</b><br>
-      Opened: <b>{{ localId ? 'OK' : '...'}}</b><br>
-      Connection: <b>{{ connection ? 'OK' : '...'}}</b><br>
-      File data: <b>{{ data ? 'OK' : '...'}}</b>
-      <br>
-      <br>
-      <input type="file" @change="fileChange" />
-      <br>
-      <input type="submit" @click.prevent="start" :disabled="!data || !remoteId || !connection" />
+      <template v-if="canConnect">
+        <label>Remote ID</label><br>
+        <input v-model="remoteId" @change="onRemoteIdChange" :readonly="isConnected">
+        <br>
+        <br>
+      </template>
+      <template v-if="canConnect && !downloading && !readyToDownload">
+        <input type="file" @change="onFileChange" :disabled="data" />
+        <br>
+      </template>
+      <template v-if="readyToDownload">
+        <input type="submit" @click.prevent="clientStartTransfer" value="Download" />
+        <br>
+        <br>
+      </template>
+      <progress v-if="downloading" :value="downloadProgress" :max="downloadTotal"></progress>
     </div>
     <br />
     <small class="footer">
       <i icon="at-sign"></i>&nbsp;<a href="https://github.com/klemek" target="_blank">klemek</a>
       -
-      <!-- TODO: 1. rename app -->
-      <i icon="github"></i>&nbsp;<a href="https://github.com/klemek/vue-boilerplate" target="_blank">Repository</a>
+      <i icon="github"></i>&nbsp;<a href="https://github.com/klemek/file-whizz" target="_blank">Repository</a>
       - 2025
     </small>
   </main>
