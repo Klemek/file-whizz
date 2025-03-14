@@ -25,6 +25,7 @@ const app = createApp({
       fileStream: null,
       fileName: null,
       fileSize: null,
+      t0: new Date(),
     };
   },
   computed: {},
@@ -76,6 +77,7 @@ const app = createApp({
     initConnection(conn) {
       conn.on("open", () => {
         console.log("connOpen");
+        console.log(conn);
         this.connection = conn;
         this.connection.on("close", this.connClose);
         this.connection.on("error", this.connError);
@@ -109,6 +111,7 @@ const app = createApp({
       console.log(data.type);
       switch (data.type) {
         case "start":
+          this.t0 = new Date();
           this.fileName = data.fileName;
           this.fileSize = data.fileSize;
           this.fileStream = streamSaver
@@ -126,6 +129,8 @@ const app = createApp({
           if (this.fileStream) {
             this.fileStream.close();
           }
+          console.log(new Date() - this.t0);
+          console.log(this.fileSize / (new Date() - this.t0));
           break;
         default:
           break;
