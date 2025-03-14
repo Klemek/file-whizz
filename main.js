@@ -10,11 +10,6 @@ const utils = {
       },
     });
   },
-  bufferCopy(src, startSrc, dst, startDst, size) {
-    const viewSrc = new Uint8Array(src, startSrc, size);
-    const dstSrc = new Uint8Array(dst, startDst, size);
-    dstSrc.set(viewSrc);
-  },
 };
 
 const MAX_CHUNK_SIZE = 12 * 1024; // 10 KB
@@ -140,12 +135,12 @@ const app = createApp({
       });
     },
     serverSendData(index) {
-      const to = Math.min(this.fileSize, index + MAX_CHUNK_SIZE);
       this.connection.send({
         type: "server-chunk",
         index,
-        bytes: this.data.slice(index, to),
+        bytes: this.data.slice(index, index + MAX_CHUNK_SIZE),
       });
+      console.log(this.data.slice(index, index + MAX_CHUNK_SIZE));
     },
     serverDone() {
       this.connection.send({
@@ -178,7 +173,7 @@ const app = createApp({
       this.connection.send({
         type: "client-done",
       });
-      const blob = new Blob(new Uint8Array(this.buffer), {
+      const blob = new Blob([new Uint8Array(this.buffer)], {
         type: "application/octet-stream",
       });
       const link = document.createElement("a");
@@ -198,12 +193,9 @@ const app = createApp({
           }
           break;
         case "server-chunk":
-          utils.bufferCopy(
-            data.bytes,
-            0,
-            this.buffer,
+          new Uint8Array(this.buffer).set(
+            new Uint8Array(data.bytes),
             data.index,
-            data.bytes.length,
           );
           this.received.push(data.index);
           break;
