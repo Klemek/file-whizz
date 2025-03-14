@@ -11,6 +11,7 @@ export default [
         ...globals.browser,
         lucide: "readonly",
         Peer: "readonly",
+        streamSaver: "readonly",
       },
     },
   },

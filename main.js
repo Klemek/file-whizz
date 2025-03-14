@@ -22,8 +22,9 @@ const app = createApp({
       remoteId: null,
       connection: null, // TODO multiple connections
       data: null, // TODO multiple file
-      streamEnqueue: null,
-      streamClose: null,
+      fileStream: null,
+      fileName: null,
+      fileSize: null,
     };
   },
   computed: {},
@@ -52,6 +53,19 @@ const app = createApp({
     initPeer() {
       this.peer = new Peer({
         debug: 3,
+        host: "peer.klemek.fr",
+        port: "443",
+        secure: true,
+        config: {
+          iceServers: [
+            { urls: ["stun:stun.l.google.com:19302"] },
+            {
+              urls: [`turn:klemek.fr:3478`, `turns:klemek.fr:5349`],
+              username: "username",
+              credential: "credential",
+            },
+          ],
+        },
       });
       this.peer.on("open", this.peerOpen);
       this.peer.on("connection", this.peerConnection);
@@ -80,11 +94,11 @@ const app = createApp({
     peerClose() {
       console.log("peerClose");
       this.peer = null;
-      setTimeout(this.initPeer);
+      // setTimeout(this.initPeer);
     },
     peerDisconnected() {
       console.log("peerDisconnected");
-      this.peer.reconnect();
+      // this.peer.reconnect();
     },
     peerError(err) {
       console.log("peerError", err);
@@ -95,21 +109,22 @@ const app = createApp({
       console.log(data.type);
       switch (data.type) {
         case "start":
-          ReadableStream({
-            start(ctrl) {
-              this.streamEnqueue = (chunk) => ctrl.enqueue(chunk);
-              this.streamClose = () => ctrl.close();
-            },
-          });
+          this.fileName = data.fileName;
+          this.fileSize = data.fileSize;
+          this.fileStream = streamSaver
+            .createWriteStream(this.fileName, {
+              size: this.fileSize,
+            })
+            .getWriter();
           break;
         case "chunk":
-          if (this.streamEnqueue) {
-            this.streamEnqueue(data.bytes);
+          if (this.fileStream) {
+            this.fileStream.write(new Uint8Array(data.bytes));
           }
           break;
         case "end":
-          if (this.streamClose) {
-            this.streamClose();
+          if (this.fileStream) {
+            this.fileStream.close();
           }
           break;
         default:
@@ -131,6 +146,8 @@ const app = createApp({
       if (!file) {
         return;
       }
+      this.fileName = file.name;
+      this.fileSize = file.size;
       this.data = null;
       const reader = new FileReader();
       reader.onload = () => {
@@ -150,6 +167,8 @@ const app = createApp({
     start() {
       this.connection.send({
         type: "start",
+        fileName: this.fileName,
+        fileSize: this.fileSize,
       });
       console.log("start");
       for (
