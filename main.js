@@ -17,7 +17,7 @@ const utils = {
   },
 };
 
-const MAX_CHUNK_SIZE = 10 * 1024; // 10 KB
+const MAX_CHUNK_SIZE = 12 * 1024; // 10 KB
 
 const app = createApp({
   data() {
@@ -178,7 +178,7 @@ const app = createApp({
       this.connection.send({
         type: "client-done",
       });
-      const blob = new Blob([this.buffer], {
+      const blob = new Blob(new Uint8Array(this.buffer), {
         type: "application/octet-stream",
       });
       const link = document.createElement("a");
