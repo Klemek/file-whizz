@@ -9,9 +9,7 @@ export default [
     languageOptions: {
       globals: {
         ...globals.browser,
-        lucide: "readonly",
         Peer: "readonly",
-        streamSaver: "readonly",
       },
     },
   },
