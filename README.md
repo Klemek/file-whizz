@@ -13,7 +13,8 @@
 * [x] Clean project
 * [x] Better data upload by chunks and ensure consistancy
 * [x] Link sharing and better workflow
-* [ ] Multiple peers
+* [x] Multiple peers
+* [ ] Get peer data
 * [ ] QRCode
 * [ ] DaisyUI redesign
 * [ ] Multiple files

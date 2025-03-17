@@ -29,8 +29,8 @@
     </h1>
     <br />
     <div>
-      <label>Local ID</label><br>
-      <input :value="localId" disabled />
+      <label>Status</label><br>
+      <input :value="statusText" disabled />
       <br>
       <br>
       <template v-if="serverIsReady">
@@ -39,25 +39,29 @@
         <br>
         <br>
       </template>
-      <template v-if="remoteId">
-        <label>Remote ID</label><br>
-        <input v-model="remoteId" disabled>
-        <br>
-        <br>
-      </template>
       <template v-if="isServer">
         <input type="file" @change="onFileChange" :disabled="server.data" />
         <br>
+        <br>
+        <template v-for="client in server.clients">
+          <label>{{ client.id }} - {{ client.status }}</label><br>
+          <progress :value="client.sent" :max="downloadTotal" aria-busy="!client.connected"></progress>
+          <br>
+          <br>
+        </template>
       </template>
-      <template v-if="readyToDownload">
-        <input type="submit" @click.prevent="onDownload" value="Download" />
-        <br>
-        <br>
-      </template>
-      <template v-if="downloading">
-        <progress :value="downloadProgress" :max="downloadTotal"></progress>
-        <br>
-        <br>
+      <template v-else>
+        <label v-if="fileName">{{ prettyFileSize }} - "{{ fileName }}"</label><br>
+        <template v-if="readyToDownload">
+          <input type="submit" @click.prevent="onDownload" value="Download" />
+          <br>
+          <br>
+        </template>
+        <template v-if="downloading">
+          <progress :value="downloadProgress" :max="downloadTotal"></progress>
+          <br>
+          <br>
+        </template>
       </template>
       <template v-if="error">
         <span class="red">{{error}}</span>

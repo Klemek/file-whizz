@@ -33,17 +33,17 @@ const app = createApp({
       fileSize: null,
       localId: null,
 
-      remoteId: null,
-      connection: null, // TODO multiple connections
-
       isServer: true,
       server: {
+        clients: [],
         url: null,
         data: null, // TODO multiple files
         copied: false,
       },
       client: {
         remoteId: null,
+        connection: null,
+        connected: false,
         downloadStart: null,
         received: [],
         buffer: null, // TODO multiple files
@@ -55,14 +55,11 @@ const app = createApp({
     canConnect() {
       return this.peer !== null && this.localId !== null;
     },
-    isConnected() {
-      return this.connection !== null;
-    },
     readyToDownload() {
       return this.client.buffer !== null && !this.client.downloadStart;
     },
     serverIsReady() {
-      return this.server.data !== null;
+      return this.canConnect && this.server.data !== null;
     },
     downloading() {
       return this.client.downloadStart !== null;
@@ -81,6 +78,45 @@ const app = createApp({
         return "Copied to clipboard";
       }
       return "Copy link";
+    },
+    statusText() {
+      if (this.error) {
+        return this.error;
+      }
+      if (!this.canConnect) {
+        return 'Acquiring ID...';
+      }
+      if (this.isServer) {
+        if (! this.server.data) {
+          return 'Waiting for file upload';
+        }
+        return 'Ready to send file';
+      }
+      if (! this.client.connected) {
+        return 'Connecting to peer...';
+      }
+      if (this.readyToDownload) {
+        return 'Ready to download';
+      }
+      if (! this.downloading) {
+        return 'Waiting for file info...';
+      }
+      if (this.downloadProgress > this.downloadTotal) {
+        return 'File downloaded';
+      }
+      return 'Downloading...';
+    },
+    prettyFileSize() {
+      let size = this.fileSize / 1000;
+      if (size < 1000) {
+        return `${size.toFixed(2)} KB`;
+      }
+      size /= 1000;
+      if (size < 1000) {
+        return `${size.toFixed(2)} MB`;
+      }
+      size /= 1000;
+      return `${size.toFixed(2)} GB`;
     },
   },
   watch: {},
@@ -133,12 +169,27 @@ const app = createApp({
       this.peer.on("disconnected", this.onPeerDisconnected);
       this.peer.on("error", this.onPeerError);
     },
-    initConnection(conn) {
-      this.connection = conn;
-      this.connection.on("open", this.onConnectionOpen);
-      this.connection.on("close", this.onConnectionClose);
-      this.connection.on("data", this.onConnectionData);
-      this.connection.on("error", this.onConnectionError);
+    initServerConnection(conn) {
+      const index = this.server.clients.length;
+      this.server.clients.push({
+        connection: conn,
+        id: conn.peer,
+        done: false,
+        sent: 0,
+        connected: false,
+        status: 'Connecting...',
+      });
+      conn.on("open", () => this.onServerConnectionOpen(index));
+      conn.on("close", () => this.onServerConnectionClose(index));
+      conn.on("data", (data) => this.onServerConnectionData(index, data));
+      conn.on("error", (err) => this.onServerConnectionError(index, err));
+    },
+    initClientConnection(conn) {
+      this.client.connection = conn;
+      conn.on("open", this.onClientConnectionOpen);
+      conn.on("close", this.onClientConnectionClose);
+      conn.on("data", this.onClientConnectionData);
+      conn.on("error", this.onClientConnectionError);
     },
     clientCreateStream() {
       try {
@@ -156,6 +207,11 @@ const app = createApp({
       link.download = this.fileName;
       link.click();
     },
+    clientOpenConnection() {
+      this.initClientConnection(
+        this.peer.connect(this.client.remoteId, { reliable: false }),
+      );
+    },
     // PEER EVENTS
     onPeerOpen(id) {
       console.log("onPeerOpen", id);
@@ -164,17 +220,14 @@ const app = createApp({
       if (this.isServer) {
         this.server.url = `${window.location.href}?s=${id}`;
       } else {
-        this.initConnection(
-          this.peer.connect(this.client.remoteId, { reliable: false }),
-        );
-        this.remoteId = this.client.remoteId;
+        this.clientOpenConnection();
       }
     },
     onPeerConnection(conn) {
       console.log("onPeerConnection", conn);
-      // TODO multiple connections for server
-      this.initConnection(conn);
-      this.remoteId = conn.peer;
+      if (this.isServer) {
+        this.initServerConnection(conn);
+      }
     },
     onPeerClose() {
       console.log("onPeerClose");
@@ -190,15 +243,42 @@ const app = createApp({
       this.peer = null;
       setTimeout(this.initPeer, 1000);
     },
-    // CONNECTION EVENTS
-    onConnectionOpen() {
-      console.log("onConnectionOpen");
-      if (this.isServer) {
-        this.sendServerInfo();
+    // SERVER CONNECTION EVENTS
+    onServerConnectionOpen(index) {
+      console.log("onServerConnectionOpen", index);
+      this.server.clients[index].connected = true;
+      this.server.clients[index].status = 'Connected';
+      this.sendServerInfo(index);
+    },
+    onServerConnectionData(index, data) {
+      console.log("onServerConnectionData", index, data.type);
+      switch (data.type) {
+        case MESSAGE_TYPE.ClientSeek:
+          this.handleClientSeek(index, data);
+          break;
+        case MESSAGE_TYPE.ClientDone:
+          this.handleClientDone(index, data);
+          break;
+        default:
+          console.error("Invalid message type");
+          break;
       }
     },
-    onConnectionData(data) {
-      console.log("onConnectionData", data.type);
+    onServerConnectionClose(index) {
+      console.log("onServerConnectionClose", index);
+      this.server.clients[index].status = 'Disconnected';
+    },
+    onServerConnectionError(index, err) {
+      console.log("onServerConnectionError", index, err);
+      this.server.clients[index].status = 'Error';
+    },
+    // CLIENT CONNECTION EVENTS
+    onClientConnectionOpen() {
+      console.log("onClientConnectionOpen");
+      this.client.connected = true;
+    },
+    onClientConnectionData(data) {
+      console.log("onClientConnectionData", data.type);
       switch (data.type) {
         case MESSAGE_TYPE.ServerInfo:
           this.handleServerInfo(data);
@@ -209,33 +289,26 @@ const app = createApp({
         case MESSAGE_TYPE.ServerDone:
           this.handleServerDone(data);
           break;
-        case MESSAGE_TYPE.ClientSeek:
-          this.handleClientSeek(data);
-          break;
-        case MESSAGE_TYPE.ClientDone:
-          this.handleClientDone(data);
-          break;
         default:
           console.error("Invalid message type");
           break;
       }
     },
-    onConnectionClose() {
-      console.log("onConnectionClose");
-      this.connection = null;
-      // TODO handle conn close
+    onClientConnectionClose() {
+      console.log("onClientConnectionClose");
+      this.client.connection = null;
     },
-    onConnectionError(err) {
-      console.log("onConnectionError", err);
-      // TODO handle error
-      throw err;
+    onClientConnectionError(err) {
+      console.log("onClientConnectionError", err);
+      this.error = `Connection failed: ${err.type}. Reconnecting...`
+      setTimeout(this.clientOpenConnection, 1000);
     },
     // EXCHANGES
-    sendServerInfo() {
-      this.connection.send({
+    sendServerInfo(index) {
+      this.server.clients[index].connection.send({
         type: MESSAGE_TYPE.ServerInfo,
-        fileName: this.server.data ? this.fileName : null,
-        fileSize: this.server.data ? this.fileSize : null,
+        fileName: this.fileName,
+        fileSize: this.fileSize,
       });
     },
     handleServerInfo(data) {
@@ -243,12 +316,13 @@ const app = createApp({
       this.fileSize = data.fileSize;
       this.clientCreateStream();
     },
-    sendServerChunk(index) {
-      this.connection.send({
+    sendServerChunk(index, chunkIndex) {
+      this.server.clients[index].connection.send({
         type: MESSAGE_TYPE.ServerChunk,
-        index,
-        bytes: this.server.data.slice(index, index + MAX_CHUNK_SIZE),
+        index: chunkIndex,
+        bytes: this.server.data.slice(chunkIndex, chunkIndex + MAX_CHUNK_SIZE),
       });
+      this.server.clients[index].sent += MAX_CHUNK_SIZE;
     },
     handleServerChunk(data) {
       new Uint8Array(this.client.buffer).set(
@@ -257,10 +331,11 @@ const app = createApp({
       );
       this.client.received.push(data.index);
     },
-    sendServerDone() {
-      this.connection.send({
+    sendServerDone(index) {
+      this.server.clients[index].connection.send({
         type: MESSAGE_TYPE.ServerDone,
       });
+
     },
     handleServerDone() {
       const indexes = [];
@@ -277,30 +352,32 @@ const app = createApp({
       }
     },
     sendClientSeek(indexes = null) {
-      this.connection.send({
+      this.client.connection.send({
         type: MESSAGE_TYPE.ClientSeek,
         indexes,
       });
     },
-    handleClientSeek(data) {
+    handleClientSeek(index, data) {
       if (data.indexes) {
-        data.indexes.forEach((index) => {
-          setTimeout(() => this.sendServerChunk(index));
+        data.indexes.forEach((chunkIndex) => {
+          setTimeout(() => this.sendServerChunk(index, chunkIndex));
         });
       } else {
-        for (let index = 0; index < this.fileSize; index += MAX_CHUNK_SIZE) {
-          setTimeout(() => this.sendServerChunk(index));
+        for (let chunkIndex = 0; chunkIndex < this.fileSize; chunkIndex += MAX_CHUNK_SIZE) {
+          setTimeout(() => this.sendServerChunk(index, chunkIndex));
         }
       }
-      setTimeout(this.sendServerDone);
+      setTimeout(() => this.sendServerDone(index));
     },
     sendClientDone() {
-      this.connection.send({
+      this.client.connection.send({
         type: MESSAGE_TYPE.ClientDone,
       });
     },
-    handleClientDone() {
-      this.connection.close();
+    handleClientDone(index) {
+      this.server.clients[index].connection.close();
+      this.server.clients[index].done = true;
+      this.server.clients[index].status = 'Done';
     },
     // UI EVENTS
     onFileChange(event) {
