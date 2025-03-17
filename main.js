@@ -12,9 +12,6 @@ const utils = {
       },
     });
   },
-  copyToClipboard(str) {
-    navigator.clipboard.writeText(str);
-  },
 };
 
 const MESSAGE_TYPE = {
@@ -39,11 +36,11 @@ const app = createApp({
       remoteId: null,
       connection: null, // TODO multiple connections
 
-      // TODO separate vars
       isServer: true,
       server: {
         url: null,
         data: null, // TODO multiple files
+        copied: false,
       },
       client: {
         remoteId: null,
@@ -75,6 +72,15 @@ const app = createApp({
     },
     downloadTotal() {
       return this.fileSize ?? 0;
+    },
+    shareText() {
+      if (navigator.canShare && navigator.canShare()) {
+        return "Share link";
+      }
+      if (this.server.copied) {
+        return "Copied to clipboard";
+      }
+      return "Copy link";
     },
   },
   watch: {},
@@ -318,13 +324,16 @@ const app = createApp({
       this.client.downloadStart = new Date();
       this.sendClientSeek();
     },
-    onCopy() {
-      try {
+    onShare() {
+      if (navigator.canShare && navigator.canShare()) {
         navigator.share({
           url: this.server.url,
+          title: window.title,
         })
-      } catch {
-        utils.copyToClipboard(this.server.url);
+      } else {
+        navigator.clipboard.writeText(this.server.url);
+        this.server.copied = true;
+        setTimeout(() => {this.server.copied = false;}, 5000);
       }
     }
   },

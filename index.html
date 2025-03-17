@@ -35,7 +35,7 @@
       <br>
       <template v-if="serverIsReady">
         <input disabled :value="server.url" />
-        <input type="submit" @click.prevent="onCopy" value="Share / Copy" />
+        <input type="submit" @click.prevent="onShare" :value="shareText" />
         <br>
         <br>
       </template>

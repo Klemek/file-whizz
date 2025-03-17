@@ -10,10 +10,10 @@
 
 ## Roadmap
 
-* [ ] Clean project
-* [ ] Better data upload by chunks and ensure consistancy
-* [ ] Link sharing and better workflow
-* [ ] QRCode
+* [x] Clean project
+* [x] Better data upload by chunks and ensure consistancy
+* [x] Link sharing and better workflow
 * [ ] Multiple peers
+* [ ] QRCode
 * [ ] DaisyUI redesign
 * [ ] Multiple files
