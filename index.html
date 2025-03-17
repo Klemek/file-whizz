@@ -58,7 +58,8 @@
           <br>
         </template>
         <template v-if="downloading">
-          <progress :value="downloadProgress" :max="downloadTotal"></progress>
+          <progress :value="downloadProgress" :max="downloadTotal"></progress><br>
+          <label>{{ prettyDownloadSpeed }}</label><label v-if="!client.downloadEnd"> - {{ prettyRemainingTime }}</label>
           <br>
           <br>
         </template>

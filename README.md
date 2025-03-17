@@ -15,7 +15,7 @@
 * [x] Link sharing and better workflow
 * [x] Multiple peers
 * [x] Get peer data
-* [ ] See download speed
+* [x] See download speed
 * [ ] DaisyUI redesign
 * [ ] QRCode
 * [ ] Multiple files

@@ -23,7 +23,35 @@ const utils = {
       }
     }
     return 'Unknown'
-  }
+  },
+  prettyBytes(byteCount) {
+    let size = byteCount / 1000;
+    if (size < 1000) {
+      return `${size.toFixed(2)} KB`;
+    }
+    size /= 1000;
+    if (size < 1000) {
+      return `${size.toFixed(2)} MB`;
+    }
+    size /= 1000;
+    return `${size.toFixed(2)} GB`;
+  },
+
+  prettyTime(deltaMillisecond) {
+    let time = deltaMillisecond / 1000;
+    if (time <= 1) {
+      return `<1s`;
+    }
+    if (time < 60) {
+      return `${Math.floor(time).toFixed(0).padStart(2, '0')}s`;
+    }
+    time /= 60;
+    if (time < 60) {
+      return `${Math.floor(time).toFixed(0).padStart(2, '0')}m${((time * 60) % 60).toFixed(0).padStart(2, '0')}s`;
+    }
+    time /= 60;
+    return `${Math.floor(time).toFixed(0).padStart(2, '0')}h${((time * 60) % 60).toFixed(0).padStart(2, '0')}m`;
+  },
 };
 
 const MESSAGE_TYPE = {
@@ -57,6 +85,7 @@ const app = createApp({
         connection: null,
         connected: false,
         downloadStart: null,
+        downloadEnd: null,
         received: [],
         buffer: null, // TODO multiple files
       },
@@ -113,22 +142,31 @@ const app = createApp({
       if (! this.downloading) {
         return 'Waiting for file info...';
       }
-      if (this.downloadProgress > this.downloadTotal) {
+      if (this.client.downloadEnd) {
         return 'File downloaded';
       }
       return 'Downloading...';
     },
     prettyFileSize() {
-      let size = this.fileSize / 1000;
-      if (size < 1000) {
-        return `${size.toFixed(2)} KB`;
+      return utils.prettyBytes(this.fileSize);
+    },
+    prettyDownloadSpeed() {
+      if (! this.client.downloadStart) {
+        return '';
       }
-      size /= 1000;
-      if (size < 1000) {
-        return `${size.toFixed(2)} MB`;
+      const time = (this.client.downloadEnd ?? (new Date())) - this.client.downloadStart;
+      const speed = 1000 * this.downloadProgress / time;
+      return `${utils.prettyBytes(speed)}/s`;
+    },
+    prettyRemainingTime() {
+      if (! this.client.downloadStart || this.client.downloadEnd) {
+        return '';
       }
-      size /= 1000;
-      return `${size.toFixed(2)} GB`;
+      const time = (this.client.downloadEnd ?? (new Date())) - this.client.downloadStart;
+      const speed = this.downloadProgress / time;
+      const remainingBytes = this.downloadTotal - this.downloadProgress;
+      const remainingTime = remainingBytes / speed;
+      return `${utils.prettyTime(remainingTime)}`;
     },
   },
   watch: {},
@@ -364,6 +402,7 @@ const app = createApp({
       if (indexes.length) {
         this.sendClientSeek(indexes);
       } else {
+        this.client.downloadEnd = new Date();
         this.sendClientDone();
         this.clientDownloadFile();
       }
