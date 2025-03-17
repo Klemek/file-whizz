@@ -205,6 +205,7 @@ const app = createApp({
         secure: true,
         config: {
           iceServers: [
+            { url: 'stun:stun.l.google.com:19302' },
             {
               urls: [`turn:klemek.fr:3478`, `turns:klemek.fr:5349`],
               username: "username",
