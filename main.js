@@ -1,10 +1,8 @@
-import { createIcons, icons } from "lucide";
 import { createApp } from "vue";
 
 const utils = {
   updateIcons() {
-    createIcons({
-      icons,
+    lucide.createIcons({
       nameAttr: "icon",
       attrs: {
         width: "1.1em",

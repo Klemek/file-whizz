@@ -10,6 +10,7 @@ export default [
       globals: {
         ...globals.browser,
         Peer: "readonly",
+        lucide: "readonly",
       },
     },
   },
