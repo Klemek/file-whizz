@@ -12,13 +12,25 @@ const utils = {
       },
     });
   },
+  userAgent(raw) {
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Browser_detection_using_the_user_agent#which_part_of_the_user_agent_contains_the_information_you_are_looking_for
+    const userAgents = ['Seamonkey','Firefox','Chromium','Edg.*', 'Chrome', 'Safari', 'OPR', 'Opera'];
+    for (let index = 0; index < userAgents.length; index+=1) {
+      const userAgent = userAgents[index];
+      const result =  new RegExp(`(${userAgent}\\/\\d+\\.\\d+)`, 'iu').exec(raw);
+      if (result) {
+        return result[0];
+      }
+    }
+    return 'Unknown'
+  }
 };
 
 const MESSAGE_TYPE = {
   ServerInfo: "server-info",
   ServerChunk: "server-chunk",
   ServerDone: "server-done",
-  ClientStartTransfer: "client-start-transfer",
+  ClientInfo: "client-info",
   ClientSeek: "client-seek",
   ClientDone: "client-done",
 };
@@ -178,6 +190,7 @@ const app = createApp({
         sent: 0,
         connected: false,
         status: 'Connecting...',
+        userAgent: null,
       });
       conn.on("open", () => this.onServerConnectionOpen(index));
       conn.on("close", () => this.onServerConnectionClose(index));
@@ -253,6 +266,9 @@ const app = createApp({
     onServerConnectionData(index, data) {
       console.log("onServerConnectionData", index, data.type);
       switch (data.type) {
+        case MESSAGE_TYPE.ClientInfo:
+          this.handleClientInfo(index, data);
+          break;
         case MESSAGE_TYPE.ClientSeek:
           this.handleClientSeek(index, data);
           break;
@@ -276,6 +292,7 @@ const app = createApp({
     onClientConnectionOpen() {
       console.log("onClientConnectionOpen");
       this.client.connected = true;
+      this.sendClientInfo();
     },
     onClientConnectionData(data) {
       console.log("onClientConnectionData", data.type);
@@ -350,6 +367,15 @@ const app = createApp({
         this.sendClientDone();
         this.clientDownloadFile();
       }
+    },
+    sendClientInfo() {
+      this.client.connection.send({
+        type: MESSAGE_TYPE.ClientInfo,
+        userAgent: navigator.userAgent,
+      });
+    },
+    handleClientInfo(index, data) {
+      this.server.clients[index].userAgent = utils.userAgent(data.userAgent);
     },
     sendClientSeek(indexes = null) {
       this.client.connection.send({

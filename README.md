@@ -14,7 +14,8 @@
 * [x] Better data upload by chunks and ensure consistancy
 * [x] Link sharing and better workflow
 * [x] Multiple peers
-* [ ] Get peer data
-* [ ] QRCode
+* [x] Get peer data
+* [ ] See download speed
 * [ ] DaisyUI redesign
+* [ ] QRCode
 * [ ] Multiple files

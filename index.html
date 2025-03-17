@@ -44,7 +44,7 @@
         <br>
         <br>
         <template v-for="client in server.clients">
-          <label>{{ client.id }} - {{ client.status }}</label><br>
+          <label>{{ client.userAgent ?? client.id }} - {{ client.status }}</label><br>
           <progress :value="client.sent" :max="downloadTotal" aria-busy="!client.connected"></progress>
           <br>
           <br>
