@@ -16,6 +16,7 @@
 * [x] Multiple peers
 * [x] Get peer data
 * [x] See download speed
+* [ ] Fix turn server settings to work on all servers
 * [ ] DaisyUI redesign
 * [ ] QRCode
 * [ ] Multiple files
