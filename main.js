@@ -12,15 +12,24 @@ const utils = {
   },
   userAgent(raw) {
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Browser_detection_using_the_user_agent#which_part_of_the_user_agent_contains_the_information_you_are_looking_for
-    const userAgents = ['Seamonkey','Firefox','Chromium','Edg.*', 'Chrome', 'Safari', 'OPR', 'Opera'];
-    for (let index = 0; index < userAgents.length; index+=1) {
+    const userAgents = [
+      "Seamonkey",
+      "Firefox",
+      "Chromium",
+      "Edg.*",
+      "Chrome",
+      "Safari",
+      "OPR",
+      "Opera",
+    ];
+    for (let index = 0; index < userAgents.length; index += 1) {
       const userAgent = userAgents[index];
-      const result =  new RegExp(`(${userAgent}\\/\\d+\\.\\d+)`, 'iu').exec(raw);
+      const result = new RegExp(`(${userAgent}\\/\\d+\\.\\d+)`, "iu").exec(raw);
       if (result) {
         return result[0];
       }
     }
-    return 'Unknown'
+    return "Unknown";
   },
   prettyBytes(byteCount) {
     let size = byteCount / 1000;
@@ -41,14 +50,21 @@ const utils = {
       return `<1s`;
     }
     if (time < 60) {
-      return `${Math.floor(time).toFixed(0).padStart(2, '0')}s`;
+      return `${Math.floor(time).toFixed(0).padStart(2, "0")}s`;
     }
     time /= 60;
     if (time < 60) {
-      return `${Math.floor(time).toFixed(0).padStart(2, '0')}m${((time * 60) % 60).toFixed(0).padStart(2, '0')}s`;
+      return `${Math.floor(time).toFixed(0).padStart(2, "0")}m${(
+        (time * 60) %
+        60
+      )
+        .toFixed(0)
+        .padStart(2, "0")}s`;
     }
     time /= 60;
-    return `${Math.floor(time).toFixed(0).padStart(2, '0')}h${((time * 60) % 60).toFixed(0).padStart(2, '0')}m`;
+    return `${Math.floor(time).toFixed(0).padStart(2, "0")}h${((time * 60) % 60)
+      .toFixed(0)
+      .padStart(2, "0")}m`;
   },
 };
 
@@ -123,44 +139,46 @@ const app = createApp({
         return this.error;
       }
       if (!this.canConnect) {
-        return 'Acquiring ID...';
+        return "Acquiring ID...";
       }
       if (this.isServer) {
-        if (! this.server.data) {
-          return 'Waiting for file upload';
+        if (!this.server.data) {
+          return "Waiting for file upload";
         }
-        return 'Ready to send file';
+        return "Ready to send file";
       }
-      if (! this.client.connected) {
-        return 'Connecting to peer...';
+      if (!this.client.connected) {
+        return "Connecting to peer...";
       }
       if (this.readyToDownload) {
-        return 'Ready to download';
+        return "Ready to download";
       }
-      if (! this.downloading) {
-        return 'Waiting for file info...';
+      if (!this.downloading) {
+        return "Waiting for file info...";
       }
       if (this.client.downloadEnd) {
-        return 'File downloaded';
+        return "File downloaded";
       }
-      return 'Downloading...';
+      return "Downloading...";
     },
     prettyFileSize() {
       return utils.prettyBytes(this.fileSize);
     },
     prettyDownloadSpeed() {
-      if (! this.client.downloadStart) {
-        return '';
+      if (!this.client.downloadStart) {
+        return "";
       }
-      const time = (this.client.downloadEnd ?? (new Date())) - this.client.downloadStart;
-      const speed = 1000 * this.downloadProgress / time;
+      const time =
+        (this.client.downloadEnd ?? new Date()) - this.client.downloadStart;
+      const speed = (1000 * this.downloadProgress) / time;
       return `${utils.prettyBytes(speed)}/s`;
     },
     prettyRemainingTime() {
-      if (! this.client.downloadStart || this.client.downloadEnd) {
-        return '';
+      if (!this.client.downloadStart || this.client.downloadEnd) {
+        return "";
       }
-      const time = (this.client.downloadEnd ?? (new Date())) - this.client.downloadStart;
+      const time =
+        (this.client.downloadEnd ?? new Date()) - this.client.downloadStart;
       const speed = this.downloadProgress / time;
       const remainingBytes = this.downloadTotal - this.downloadProgress;
       const remainingTime = remainingBytes / speed;
@@ -188,8 +206,9 @@ const app = createApp({
     },
     initClient() {
       const url = new URL(window.location);
-      const remoteId = url.searchParams.get("s") ?? '';
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+      const remoteId = url.searchParams.get("s") ?? "";
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
       if (uuidRegex.test(remoteId)) {
         this.isServer = false;
         this.client.remoteId = remoteId;
@@ -203,11 +222,18 @@ const app = createApp({
         secure: true,
         config: {
           iceServers: [
-            { url: 'stun:stun.l.google.com:19302' },
             {
-              urls: [`turn:klemek.fr:3478`, `turns:klemek.fr:5349`],
-              username: "username",
-              credential: "credential",
+              urls: ["stun:klemek.fr:3478"],
+            },
+            {
+              urls: ["turns:klemek.fr:5349"],
+              username: "anonymous",
+              credential: "anonymous",
+            },
+            {
+              urls: ["turn:klemek.fr:3478"],
+              username: "anonymous",
+              credential: "anonymous",
             },
           ],
         },
@@ -219,16 +245,24 @@ const app = createApp({
       this.peer.on("error", this.onPeerError);
     },
     initServerConnection(conn) {
-      const index = this.server.clients.length;
-      this.server.clients.push({
+      let index = this.server.clients.findIndex(
+        (client) => client.id === conn.peer
+      );
+      const clientData = {
         connection: conn,
         id: conn.peer,
         done: false,
         sent: 0,
         connected: false,
-        status: 'Connecting...',
+        status: "Connecting...",
         userAgent: null,
-      });
+      };
+      if (index === -1) {
+        index = this.server.clients.length;
+        this.server.clients.push(clientData);
+      } else {
+        this.server.clients[index] = clientData;
+      }
       conn.on("open", () => this.onServerConnectionOpen(index));
       conn.on("close", () => this.onServerConnectionClose(index));
       conn.on("data", (data) => this.onServerConnectionData(index, data));
@@ -259,7 +293,7 @@ const app = createApp({
     },
     clientOpenConnection() {
       this.initClientConnection(
-        this.peer.connect(this.client.remoteId, { reliable: false }),
+        this.peer.connect(this.client.remoteId, { reliable: false })
       );
     },
     // PEER EVENTS
@@ -297,7 +331,7 @@ const app = createApp({
     onServerConnectionOpen(index) {
       console.log("onServerConnectionOpen", index);
       this.server.clients[index].connected = true;
-      this.server.clients[index].status = 'Connected';
+      this.server.clients[index].status = "Connected";
       this.sendServerInfo(index);
     },
     onServerConnectionData(index, data) {
@@ -319,11 +353,11 @@ const app = createApp({
     },
     onServerConnectionClose(index) {
       console.log("onServerConnectionClose", index);
-      this.server.clients[index].status = 'Disconnected';
+      this.server.clients[index].status = "Disconnected";
     },
     onServerConnectionError(index, err) {
       console.log("onServerConnectionError", index, err);
-      this.server.clients[index].status = 'Error';
+      this.server.clients[index].status = "Error";
     },
     // CLIENT CONNECTION EVENTS
     onClientConnectionOpen() {
@@ -354,7 +388,7 @@ const app = createApp({
     },
     onClientConnectionError(err) {
       console.log("onClientConnectionError", err);
-      this.error = `Connection failed: ${err.type}. Reconnecting...`
+      this.error = `Connection failed: ${err.type}. Reconnecting...`;
       setTimeout(this.clientOpenConnection, 1000);
     },
     // EXCHANGES
@@ -381,7 +415,7 @@ const app = createApp({
     handleServerChunk(data) {
       new Uint8Array(this.client.buffer).set(
         new Uint8Array(data.bytes),
-        data.index,
+        data.index
       );
       this.client.received.push(data.index);
     },
@@ -389,7 +423,6 @@ const app = createApp({
       this.server.clients[index].connection.send({
         type: MESSAGE_TYPE.ServerDone,
       });
-
     },
     handleServerDone() {
       const indexes = [];
@@ -427,7 +460,11 @@ const app = createApp({
           setTimeout(() => this.sendServerChunk(index, chunkIndex));
         });
       } else {
-        for (let chunkIndex = 0; chunkIndex < this.fileSize; chunkIndex += MAX_CHUNK_SIZE) {
+        for (
+          let chunkIndex = 0;
+          chunkIndex < this.fileSize;
+          chunkIndex += MAX_CHUNK_SIZE
+        ) {
           setTimeout(() => this.sendServerChunk(index, chunkIndex));
         }
       }
@@ -441,7 +478,7 @@ const app = createApp({
     handleClientDone(index) {
       this.server.clients[index].connection.close();
       this.server.clients[index].done = true;
-      this.server.clients[index].status = 'Done';
+      this.server.clients[index].status = "Done";
     },
     // UI EVENTS
     onFileChange(event) {
@@ -470,13 +507,15 @@ const app = createApp({
         navigator.share({
           url: this.server.url,
           title: window.title,
-        })
+        });
       } else {
         navigator.clipboard.writeText(this.server.url);
         this.server.copied = true;
-        setTimeout(() => {this.server.copied = false;}, 5000);
+        setTimeout(() => {
+          this.server.copied = false;
+        }, 5000);
       }
-    }
+    },
   },
 });
 
