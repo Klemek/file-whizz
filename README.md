@@ -1,5 +1,5 @@
 # File-Whizz
-*Make that file buzzing through air*
+*No need for cloud when you have wings*
 
 ### [Tool link](https://klemek.github.io/file-whizz/)
 
@@ -17,6 +17,7 @@
 * [x] Get peer data
 * [x] See download speed
 * [ ] Fix turn server settings to work on all servers
+* [ ] Fix edge cases
 * [ ] DaisyUI redesign
 * [ ] QRCode
 * [ ] Multiple files
