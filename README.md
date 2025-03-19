@@ -1,7 +1,7 @@
 # File-Whizz
 *No need for cloud when you have wings*
 
-### [Tool link](https://klemek.github.io/file-whizz/)
+### [Tool link](https://file.klemek.fr/)
 
 ## Roadmap
 
