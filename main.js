@@ -15,7 +15,7 @@ const utils = {
       text,
       width: 1024,
       height: 1024,
-      colorDark: "#ffffff",
+      colorDark: "oklch(0.2 0 0)",
       colorLight: "#00000000",
       correctLevel: QRCode.CorrectLevel.L,
     });
