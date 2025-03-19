@@ -10,6 +10,16 @@ const utils = {
       },
     });
   },
+  makeQrCode(element, text) {
+    return new QRCode(element, {
+      text,
+      width: 1024,
+      height: 1024,
+      colorDark: "#ffffff",
+      colorLight: "#00000000",
+      correctLevel: QRCode.CorrectLevel.L,
+    });
+  },
   userAgent(raw) {
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Browser_detection_using_the_user_agent#which_part_of_the_user_agent_contains_the_information_you_are_looking_for
     const userAgents = [
@@ -341,6 +351,7 @@ const app = createApp({
       this.error = null;
       if (this.isServer) {
         this.server.url = `${window.location.href}?s=${id}`;
+        utils.makeQrCode(this.$refs.qrcode, this.server.url);
       } else {
         this.clientOpenConnection();
       }

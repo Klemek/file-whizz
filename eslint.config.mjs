@@ -11,6 +11,7 @@ export default [
         ...globals.browser,
         Peer: "readonly",
         lucide: "readonly",
+        QRCode: "readonly",
       },
     },
   },

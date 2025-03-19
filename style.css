@@ -20,3 +20,10 @@ h6 .lucide {
 .hero {
   background-image: url(./background.jpg);
 }
+
+#qrcode img,
+#qrcode canvas {
+  object-fit: fill;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+}

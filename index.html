@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="material-colors.css" />
   <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-js-package@1/qrcode.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
@@ -62,6 +63,8 @@
             <div v-if="!server.data" class="my-t w-full">
               <label for="file-input" class="btn btn-primary w-full"><i icon="file-up"></i> Select file</label>
               <input @change="onFileChange" id="file-input" type="file" class="hidden" />
+            </div>
+            <div ref="qrcode" id="qrcode" :class="serverIsReady ? '' : 'hidden'" class="w-full mt-2">
             </div>
             <div v-if="serverIsReady" @click="onShare" class="mt-2 w-full btn btn-primary">
               <i icon="share-2"></i> {{ shareText }}

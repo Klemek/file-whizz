@@ -14,5 +14,6 @@
 * [ ] Fix turn server settings to work on all servers
 * [ ] Fix edge cases
 * [x] DaisyUI redesign
-* [ ] QRCode
+* [x] QRCode
+* [ ] More cleaning
 * [ ] Multiple files
