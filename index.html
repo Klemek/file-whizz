@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="material-colors.css" />
   <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0/dist/umd/lucide.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
   <script type="importmap">
       {
         "imports": {
@@ -19,30 +22,93 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta property="og:title" content="File Whizz">
   <meta property="og:description" content="No need for cloud when you have wings">
+  <meta property="og:url" content="https://file.klemek.fr">
+  <meta property="og:image" content="https://file.klemek.fr/preview.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
 </head>
 
-<body>
-  <main id="app" style="display: none">
-    <h1>
-      <i icon="file-volume-2"></i>
-      File Whizz
-    </h1>
-    <br />
+<body data-theme="night" class="min-h-screen flex flex-col">
+  <div class="hero flex-grow bg-base-200">
+    <main id="app" class="hero-content text-center" style="display: none">
+      <div class="card w-96 bg-base-100/95 card-xl shadow-sm">
+        <div class="card-body">
+          <h2 class="card-title text-4xl"><i icon="file-volume-2"></i> File Whizz</h2>
+          <div v-if="isServer" class="mt-2 w-full italic">
+            Send files easily through <a class="underline" target="_blank" href="https://webrtc.org/">WebRTC</a>
+            directly to another device, without an intermediary server.
+          </div>
+          <div v-else class="mt-2 w-full">
+            Receive files easily through <a class="underline" target="_blank" href="https://webrtc.org/">WebRTC</a>
+            directly from another device, without an intermediary server.
+          </div>
+          <div class="mt-2 w-full">
+            <div class="inline-grid *:[grid-area:1/1] align-middle mr-1">
+              <div :class="`status status-${statusColor(status)} status-lg animate-ping`"></div>
+              <div :class="`status status-${statusColor(status)} status-lg`"></div>
+            </div> {{ status }}
+          </div>
+          <div v-if="error" class="mt-2 text-error">
+            {{ error }}
+          </div>
+          <div v-if="fileName" class="mt-2 w-full">
+            <code>{{ prettyFileSize }} - {{ fileName }}</code>
+          </div>
+          <template v-if="isServer">
+            <div v-if="!server.data" class="my-t w-full">
+              <label for="file-input" class="btn btn-primary w-full"><i icon="file-up"></i> Select file</label>
+              <input @change="onFileChange" id="file-input" type="file" class="hidden" />
+            </div>
+            <div v-if="serverIsReady" @click="onShare" class="mt-2 w-full btn btn-primary">
+              <i icon="share-2"></i> {{ shareText }}
+            </div>
+            <ul v-if="serverIsReady && server.clients.length"
+              class="mt-2 list bg-base-100 rounded-box shadow-md text-left">
+              <li class="p-4 pb-2 text-xs opacity-60 tracking-wide">Connected peers</li>
+              <li class="list-row" v-for="client in server.clients" v-bind:key="client.id">
+                <div class="list-col-grow">
+                  <div>{{ client.userAgent ?? client.id }}</div>
+                  <div>
+                    <div :class="`status status-${statusColor(client.status)}`"></div> {{ client.status }}
+                  </div>
+                  <progress :value="client.sent" :max="downloadTotal" aria-busy="!client.connected" class="progress"
+                    :class="client.sent >=downloadTotal ? 'progress-success' : 'progress-primary'"></progress>
+                </div>
+              </li>
+            </ul>
+          </template>
+          <template v-else>
+            <div @click="onDownload" :class="readyToDownload ? 'btn-primary' : 'btn-disabled'" class="mt-2 w-full btn">
+              <i icon="file-down"></i> Download
+            </div>
+            <div v-if="downloading || client.downloadEnd" class="w-full">
+              <progress :class="client.downloadEnd ? 'progress-success' : 'progress-primary'" :value="downloadProgress"
+                :max="downloadTotal" class="progress w-full"></progress>
+              <label>{{ prettyDownloadSpeed }}<span v-if="!client.downloadEnd"> - {{ prettyRemainingTime
+                  }}</span></label>
+            </div>
+          </template>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="footer sm:footer-horizontal footer-center bg-base-300 text-base-content p-4">
+    <aside>
+      <p>
+        2025 - Made by
+        <i icon="at-sign"></i><a href="https://github.com/klemek" target="_blank" class="underline">klemek</a>
+        (<i icon="github"></i> <a href="https://github.com/klemek/file-whizz" target="_blank"
+          class="underline">Repository</a>) -
+        Photo by
+        <a href="https://unsplash.com/photos/low-angle-photography-of-highrise-building-p-rN-n6Miag"
+          class="underline">JOHN TOWNER</a>
+        on <a href="https://unsplash.com/" target="_blank" class="underline">Unsplash</a>
+      </p>
+    </aside>
+  </footer>
+  <!--
     <div>
-      <label>Status</label><br>
-      <input :value="statusText" disabled />
-      <br>
-      <br>
-      <template v-if="serverIsReady">
-        <input disabled :value="server.url" />
-        <input type="submit" @click.prevent="onShare" :value="shareText" />
-        <br>
-        <br>
-      </template>
       <template v-if="isServer">
-        <input type="file" @change="onFileChange" :disabled="server.data" />
-        <br>
-        <br>
         <template v-for="client in server.clients">
           <label>{{ client.userAgent ?? client.id }} - {{ client.status }}</label><br>
           <progress :value="client.sent" :max="downloadTotal" aria-busy="!client.connected"></progress>
@@ -50,34 +116,8 @@
           <br>
         </template>
       </template>
-      <template v-else>
-        <label v-if="fileName">{{ prettyFileSize }} - "{{ fileName }}"</label><br>
-        <template v-if="readyToDownload">
-          <input type="submit" @click.prevent="onDownload" value="Download" />
-          <br>
-          <br>
-        </template>
-        <template v-if="downloading">
-          <progress :value="downloadProgress" :max="downloadTotal"></progress><br>
-          <label>{{ prettyDownloadSpeed }}</label><label v-if="!client.downloadEnd"> - {{ prettyRemainingTime }}</label>
-          <br>
-          <br>
-        </template>
-      </template>
-      <template v-if="error">
-        <span class="red">{{error}}</span>
-        <br>
-        <br>
-      </template>
     </div>
-    <br>
-    <small class="footer">
-      <i icon="at-sign"></i>&nbsp;<a href="https://github.com/klemek" target="_blank">klemek</a>
-      -
-      <i icon="github"></i>&nbsp;<a href="https://github.com/klemek/file-whizz" target="_blank">Repository</a>
-      - 2025
-    </small>
-  </main>
+     -->
 </body>
 
 </html>

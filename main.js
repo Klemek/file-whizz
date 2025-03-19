@@ -77,6 +77,32 @@ const MESSAGE_TYPE = {
   ClientDone: "client-done",
 };
 
+const STATUS = {
+  Error: "Error",
+  Connecting: "Acquiring ID...",
+  ServerNoFile: "Online",
+  ServerReady: "Ready to send file",
+  ClientConnecting: "Connecting to peer...",
+  ClientWaiting: "Waiting for file info...",
+  ClientReady: "Ready to download",
+  ClientDownloading: "Downloading file...",
+  ClientDownloaded: "File downloaded",
+  ClientDisconnected: "Disconnected",
+};
+
+const STATUS_COLOR = {
+  [STATUS.Error]: "error",
+  [STATUS.Connecting]: "neutral",
+  [STATUS.ServerNoFile]: "primary",
+  [STATUS.ServerReady]: "success",
+  [STATUS.ClientConnecting]: "primary",
+  [STATUS.ClientWaiting]: "primary",
+  [STATUS.ClientReady]: "success",
+  [STATUS.ClientDownloading]: "primary",
+  [STATUS.ClientDownloaded]: "success",
+  [STATUS.ClientDisconnected]: "neutral",
+};
+
 const MAX_CHUNK_SIZE = 12 * 1024; // 12 KB
 
 const app = createApp({
@@ -86,6 +112,7 @@ const app = createApp({
       fileName: null,
       fileSize: null,
       localId: null,
+      error: null,
 
       isServer: true,
       server: {
@@ -103,7 +130,6 @@ const app = createApp({
         received: [],
         buffer: null, // TODO multiple files
       },
-      error: null,
     };
   },
   computed: {
@@ -111,13 +137,19 @@ const app = createApp({
       return this.peer !== null && this.localId !== null;
     },
     readyToDownload() {
-      return this.client.buffer !== null && !this.client.downloadStart;
+      return (
+        this.client.connection !== null &&
+        this.client.buffer !== null &&
+        this.client.downloadStart === null
+      );
     },
     serverIsReady() {
       return this.canConnect && this.server.data !== null;
     },
     downloading() {
-      return this.client.downloadStart !== null;
+      return (
+        this.client.downloadStart !== null && this.client.downloadEnd === null
+      );
     },
     downloadProgress() {
       return this.client.received.length * MAX_CHUNK_SIZE;
@@ -134,32 +166,35 @@ const app = createApp({
       }
       return "Copy link";
     },
-    statusText() {
+    status() {
       if (this.error) {
-        return this.error;
+        return STATUS.Error;
       }
       if (!this.canConnect) {
-        return "Acquiring ID...";
+        return STATUS.Connecting;
       }
       if (this.isServer) {
         if (!this.server.data) {
-          return "Waiting for file upload";
+          return STATUS.ServerNoFile;
         }
-        return "Ready to send file";
+        return STATUS.ServerReady;
       }
       if (!this.client.connected) {
-        return "Connecting to peer...";
+        return STATUS.ClientConnecting;
       }
-      if (this.readyToDownload) {
-        return "Ready to download";
-      }
-      if (!this.downloading) {
-        return "Waiting for file info...";
+      if (!this.client.connection) {
+        return STATUS.ClientDisconnected;
       }
       if (this.client.downloadEnd) {
-        return "File downloaded";
+        return STATUS.ClientDownloaded;
       }
-      return "Downloading...";
+      if (this.readyToDownload) {
+        return STATUS.ClientReady;
+      }
+      if (!this.downloading) {
+        return STATUS.ClientWaiting;
+      }
+      return STATUS.ClientDownloading;
     },
     prettyFileSize() {
       return utils.prettyBytes(this.fileSize);
@@ -254,7 +289,7 @@ const app = createApp({
         done: false,
         sent: 0,
         connected: false,
-        status: "Connecting...",
+        status: STATUS.ClientConnecting,
         userAgent: null,
       };
       if (index === -1) {
@@ -296,6 +331,9 @@ const app = createApp({
         this.peer.connect(this.client.remoteId, { reliable: false })
       );
     },
+    statusColor(status) {
+      return STATUS_COLOR[status];
+    },
     // PEER EVENTS
     onPeerOpen(id) {
       console.log("onPeerOpen", id);
@@ -331,7 +369,7 @@ const app = createApp({
     onServerConnectionOpen(index) {
       console.log("onServerConnectionOpen", index);
       this.server.clients[index].connected = true;
-      this.server.clients[index].status = "Connected";
+      this.server.clients[index].status = STATUS.ClientReady;
       this.sendServerInfo(index);
     },
     onServerConnectionData(index, data) {
@@ -353,11 +391,11 @@ const app = createApp({
     },
     onServerConnectionClose(index) {
       console.log("onServerConnectionClose", index);
-      this.server.clients[index].status = "Disconnected";
+      this.server.clients[index].status = STATUS.ClientDisconnected;
     },
     onServerConnectionError(index, err) {
       console.log("onServerConnectionError", index, err);
-      this.server.clients[index].status = "Error";
+      this.server.clients[index].status = STATUS.Error;
     },
     // CLIENT CONNECTION EVENTS
     onClientConnectionOpen() {
@@ -455,6 +493,7 @@ const app = createApp({
       });
     },
     handleClientSeek(index, data) {
+      this.server.clients[index].status = STATUS.ClientDownloading;
       if (data.indexes) {
         data.indexes.forEach((chunkIndex) => {
           setTimeout(() => this.sendServerChunk(index, chunkIndex));
@@ -478,7 +517,7 @@ const app = createApp({
     handleClientDone(index) {
       this.server.clients[index].connection.close();
       this.server.clients[index].done = true;
-      this.server.clients[index].status = "Done";
+      this.server.clients[index].status = STATUS.ClientDisconnected;
     },
     // UI EVENTS
     onFileChange(event) {
@@ -499,7 +538,11 @@ const app = createApp({
       reader.readAsArrayBuffer(file);
     },
     onDownload() {
+      if (!this.readyToDownload) {
+        return;
+      }
       this.client.downloadStart = new Date();
+      this.client.downloadEnd = null;
       this.sendClientSeek();
     },
     onShare() {
