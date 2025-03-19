@@ -11,9 +11,10 @@
 * [x] Multiple peers
 * [x] Get peer data
 * [x] See download speed
-* [ ] Fix turn server settings to work on all servers
-* [ ] Fix edge cases
 * [x] DaisyUI redesign
 * [x] QRCode
-* [ ] More cleaning
-* [ ] Multiple files
+* [x] Fix turn server settings to work on all servers
+* [x] More cleaning
+* [ ] Fix edge cases
+* [ ] Cancel download
+

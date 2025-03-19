@@ -52,8 +52,7 @@
               <div :class="`status status-${statusColor(status)} status-lg`"></div>
             </div> {{ status }}
           </div>
-          <div v-if="error" class="mt-2 text-error">
-            {{ error }}
+          <div v-if="error" class="mt-2 text-error" v-html="error">
           </div>
           <div v-if="fileName" class="mt-2 w-full">
             <code>{{ prettyFileSize }} - {{ fileName }}</code>
@@ -66,7 +65,7 @@
             <div ref="qrcode" id="qrcode" :class="serverIsReady ? '' : 'hidden'" class="w-full mt-2">
             </div>
             <div v-if="serverIsReady" @click="onShare" class="mt-2 w-full btn btn-primary">
-              <i icon="share-2"></i> {{ shareText }}
+              <i icon="share-2"></i> {{ serverShareText }}
             </div>
             <ul v-if="serverIsReady && server.clients.length"
               class="mt-2 list bg-base-100 rounded-box shadow-md text-left">
@@ -77,20 +76,20 @@
                   <div>
                     <div :class="`status status-${statusColor(client.status)}`"></div> {{ client.status }}
                   </div>
-                  <progress :value="client.sent" :max="downloadTotal" aria-busy="!client.connected" class="progress"
-                    :class="client.sent >=downloadTotal ? 'progress-success' : 'progress-primary'"></progress>
+                  <progress :value="client.sent" :max="fileSize" aria-busy="!client.connected" class="progress"
+                    :class="client.sent >= fileSize ? 'progress-success' : 'progress-primary'"></progress>
                 </div>
               </li>
             </ul>
           </template>
           <template v-else>
-            <div @click="onDownload" :class="readyToDownload ? 'btn-primary' : 'btn-disabled'" class="mt-2 w-full btn">
+            <div @click="onDownload" :class="clientIsReady ? 'btn-primary' : 'btn-disabled'" class="mt-2 w-full btn">
               <i icon="file-down"></i> Download
             </div>
-            <div v-if="downloading || client.downloadEnd" class="w-full">
-              <progress :class="client.downloadEnd ? 'progress-success' : 'progress-primary'" :value="downloadProgress"
-                :max="downloadTotal" class="progress w-full"></progress>
-              <label>{{ prettyDownloadSpeed }}<span v-if="!client.downloadEnd"> - {{ prettyRemainingTime
+            <div v-if="clientDownloading || clientFinished" class="w-full">
+              <progress :class="clientFinished ? 'progress-success' : 'progress-primary'"
+                :value="clientDownloadProgress" :max="fileSize" class="progress w-full"></progress>
+              <label>{{ prettyDownloadSpeed }}<span v-if="clientDownloading"> - {{ prettyRemainingTime
                   }}</span></label>
             </div>
           </template>

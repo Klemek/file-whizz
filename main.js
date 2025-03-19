@@ -113,7 +113,7 @@ const STATUS_COLOR = {
   [STATUS.ClientDisconnected]: "neutral",
 };
 
-const MAX_CHUNK_SIZE = 12 * 1024; // 12 KB
+const MAX_CHUNK_SIZE = 12 * 1024;
 
 const app = createApp({
   data() {
@@ -128,7 +128,7 @@ const app = createApp({
       server: {
         clients: [],
         url: null,
-        data: null, // TODO multiple files
+        data: null,
         copied: false,
       },
       client: {
@@ -138,7 +138,7 @@ const app = createApp({
         downloadStart: null,
         downloadEnd: null,
         received: [],
-        buffer: null, // TODO multiple files
+        buffer: null,
       },
     };
   },
@@ -146,28 +146,12 @@ const app = createApp({
     canConnect() {
       return this.peer !== null && this.localId !== null;
     },
-    readyToDownload() {
-      return (
-        this.client.connection !== null &&
-        this.client.buffer !== null &&
-        this.client.downloadStart === null
-      );
-    },
     serverIsReady() {
-      return this.canConnect && this.server.data !== null;
-    },
-    downloading() {
       return (
-        this.client.downloadStart !== null && this.client.downloadEnd === null
+        this.error !== null && this.canConnect && this.server.data !== null
       );
     },
-    downloadProgress() {
-      return this.client.received.length * MAX_CHUNK_SIZE;
-    },
-    downloadTotal() {
-      return this.fileSize ?? 0;
-    },
-    shareText() {
+    serverShareText() {
       if (navigator.canShare && navigator.canShare()) {
         return "Share link";
       }
@@ -176,34 +160,41 @@ const app = createApp({
       }
       return "Copy link";
     },
+    clientIsReady() {
+      return (
+        this.error !== null &&
+        this.canConnect &&
+        this.client.connection !== null &&
+        this.client.buffer !== null &&
+        this.client.downloadStart === null
+      );
+    },
+    clientDownloading() {
+      return (
+        this.client.downloadStart !== null && this.client.downloadEnd === null
+      );
+    },
+    clientDownloadProgress() {
+      return this.client.received.length * MAX_CHUNK_SIZE;
+    },
+    clientFinished() {
+      return this.client.downloadEnd !== null;
+    },
     status() {
-      if (this.error) {
-        return STATUS.Error;
-      }
-      if (!this.canConnect) {
-        return STATUS.Connecting;
-      }
-      if (this.isServer) {
-        if (!this.server.data) {
-          return STATUS.ServerNoFile;
-        }
-        return STATUS.ServerReady;
-      }
-      if (!this.client.connected) {
-        return STATUS.ClientConnecting;
-      }
-      if (!this.client.connection) {
-        return STATUS.ClientDisconnected;
-      }
-      if (this.client.downloadEnd) {
-        return STATUS.ClientDownloaded;
-      }
-      if (this.readyToDownload) {
-        return STATUS.ClientReady;
-      }
-      if (!this.downloading) {
-        return STATUS.ClientWaiting;
-      }
+      if (this.error) return STATUS.Error;
+      if (!this.canConnect) return STATUS.Connecting;
+      return this.isServer ? this.serverStatus : this.clientStatus;
+    },
+    serverStatus() {
+      if (!this.server.data) return STATUS.ServerNoFile;
+      return STATUS.ServerReady;
+    },
+    clientStatus() {
+      if (!this.client.connected) return STATUS.ClientConnecting;
+      if (!this.client.connection) return STATUS.ClientDisconnected;
+      if (this.client.downloadEnd) return STATUS.ClientDownloaded;
+      if (this.clientIsReady) return STATUS.ClientReady;
+      if (!this.clientDownloading) return STATUS.ClientWaiting;
       return STATUS.ClientDownloading;
     },
     prettyFileSize() {
@@ -215,7 +206,7 @@ const app = createApp({
       }
       const time =
         (this.client.downloadEnd ?? new Date()) - this.client.downloadStart;
-      const speed = (1000 * this.downloadProgress) / time;
+      const speed = (1000 * this.clientDownloadProgress) / time;
       return `${utils.prettyBytes(speed)}/s`;
     },
     prettyRemainingTime() {
@@ -224,13 +215,12 @@ const app = createApp({
       }
       const time =
         (this.client.downloadEnd ?? new Date()) - this.client.downloadStart;
-      const speed = this.downloadProgress / time;
-      const remainingBytes = this.downloadTotal - this.downloadProgress;
+      const speed = this.clientDownloadProgress / time;
+      const remainingBytes = this.fileSize - this.clientDownloadProgress;
       const remainingTime = remainingBytes / speed;
       return `${utils.prettyTime(remainingTime)}`;
     },
   },
-  watch: {},
   updated() {
     utils.updateIcons();
   },
@@ -261,7 +251,7 @@ const app = createApp({
     },
     initPeer() {
       this.peer = new Peer({
-        debug: 3,
+        debug: window.location.href.includes("localhost") ? 3 : 0,
         host: "peer.klemek.fr",
         port: "443",
         secure: true,
@@ -346,7 +336,6 @@ const app = createApp({
     },
     // PEER EVENTS
     onPeerOpen(id) {
-      console.log("onPeerOpen", id);
       this.localId = id;
       this.error = null;
       if (this.isServer) {
@@ -357,34 +346,28 @@ const app = createApp({
       }
     },
     onPeerConnection(conn) {
-      console.log("onPeerConnection", conn);
       if (this.isServer) {
         this.initServerConnection(conn);
       }
     },
     onPeerClose() {
-      console.log("onPeerClose");
       this.peer = null;
     },
     onPeerDisconnected() {
-      console.log("onPeerDisconnected");
       this.peer.reconnect();
     },
     onPeerError(err) {
-      console.log("onPeerError", err);
-      this.error = `Error connecting: ${err.type}. Reconnecting...`;
+      this.error = `${err.type}.<br>Reconnecting...`;
       this.peer = null;
       setTimeout(this.initPeer, 1000);
     },
     // SERVER CONNECTION EVENTS
     onServerConnectionOpen(index) {
-      console.log("onServerConnectionOpen", index);
       this.server.clients[index].connected = true;
       this.server.clients[index].status = STATUS.ClientReady;
       this.sendServerInfo(index);
     },
     onServerConnectionData(index, data) {
-      console.log("onServerConnectionData", index, data.type);
       switch (data.type) {
         case MESSAGE_TYPE.ClientInfo:
           this.handleClientInfo(index, data);
@@ -396,26 +379,22 @@ const app = createApp({
           this.handleClientDone(index, data);
           break;
         default:
-          console.error("Invalid message type");
+          this.server.clients[index].status = STATUS.Error;
           break;
       }
     },
     onServerConnectionClose(index) {
-      console.log("onServerConnectionClose", index);
       this.server.clients[index].status = STATUS.ClientDisconnected;
     },
-    onServerConnectionError(index, err) {
-      console.log("onServerConnectionError", index, err);
+    onServerConnectionError(index) {
       this.server.clients[index].status = STATUS.Error;
     },
     // CLIENT CONNECTION EVENTS
     onClientConnectionOpen() {
-      console.log("onClientConnectionOpen");
       this.client.connected = true;
       this.sendClientInfo();
     },
     onClientConnectionData(data) {
-      console.log("onClientConnectionData", data.type);
       switch (data.type) {
         case MESSAGE_TYPE.ServerInfo:
           this.handleServerInfo(data);
@@ -427,17 +406,15 @@ const app = createApp({
           this.handleServerDone(data);
           break;
         default:
-          console.error("Invalid message type");
+          this.error = "Invalid message received";
           break;
       }
     },
     onClientConnectionClose() {
-      console.log("onClientConnectionClose");
       this.client.connection = null;
     },
     onClientConnectionError(err) {
-      console.log("onClientConnectionError", err);
-      this.error = `Connection failed: ${err.type}. Reconnecting...`;
+      this.error = `${err.type}.<br>Reconnecting...`;
       setTimeout(this.clientOpenConnection, 1000);
     },
     // EXCHANGES
@@ -532,7 +509,7 @@ const app = createApp({
     },
     // UI EVENTS
     onFileChange(event) {
-      const [file] = event.target.files; // TODO multiple files
+      const [file] = event.target.files;
       if (!file) {
         return;
       }
@@ -549,7 +526,7 @@ const app = createApp({
       reader.readAsArrayBuffer(file);
     },
     onDownload() {
-      if (!this.readyToDownload) {
+      if (!this.clientIsReady) {
         return;
       }
       this.client.downloadStart = new Date();
