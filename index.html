@@ -55,8 +55,8 @@
           </div>
           <div v-if="error" class="mt-2 text-error" v-html="error">
           </div>
-          <div v-if="fileName" class="mt-2 w-full">
-            <code>{{ prettyFileSize }} - {{ fileName }}</code>
+          <div v-if="fileName" class="mt-2 w-full truncate">
+            <code>{{ fileName }}<br>({{ prettyFileSize }})</code>
           </div>
           <template v-if="isServer">
             <div v-if="!server.data" class="my-t w-full">
@@ -69,7 +69,6 @@
               <i icon="share-2"></i> {{ serverShareText }}
             </div>
             <ul v-if="serverIsReady && server.clients.length" class="mt-2 -mx-10 -mb-10 list rounded-box text-left">
-              <li class="p-4 pb-2 text-xs opacity-60 tracking-wide">Connected peers</li>
               <li class="list-row" v-for="client in server.clients" v-bind:key="client.id">
                 <div class="list-col-grow">
                   <div>{{ client.userAgent ?? client.id }}</div>
