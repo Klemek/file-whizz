@@ -103,12 +103,12 @@ const STATUS = {
 const STATUS_COLOR = {
   [STATUS.Error]: "error",
   [STATUS.Connecting]: "neutral",
-  [STATUS.ServerNoFile]: "primary",
+  [STATUS.ServerNoFile]: "info",
   [STATUS.ServerReady]: "success",
-  [STATUS.ClientConnecting]: "primary",
-  [STATUS.ClientWaiting]: "primary",
+  [STATUS.ClientConnecting]: "info",
+  [STATUS.ClientWaiting]: "info",
   [STATUS.ClientReady]: "success",
-  [STATUS.ClientDownloading]: "primary",
+  [STATUS.ClientDownloading]: "info",
   [STATUS.ClientDownloaded]: "success",
   [STATUS.ClientDisconnected]: "neutral",
 };

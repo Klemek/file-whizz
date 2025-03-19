@@ -1,4 +1,4 @@
-# File-Whizz
+# 🐝 File-Whizz
 *No need for cloud when you have wings*
 
 ### [Tool link](https://file.klemek.fr/)
