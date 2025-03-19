@@ -16,5 +16,4 @@
 * [x] Fix turn server settings to work on all servers
 * [x] More cleaning
 * [x] Fix edge cases
-* [ ] Cancel download
 
