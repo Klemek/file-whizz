@@ -3,7 +3,6 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>File Whizz</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="material-colors.css" />
   <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -20,12 +19,17 @@
     </script>
   <script type="module" src="main.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta property="og:title" content="File Whizz">
-  <meta property="og:description" content="No need for cloud when you have wings">
-  <meta property="og:url" content="https://file.klemek.fr">
+  <meta name="twitter:card" content="summary" />
+  <title>File Whizz • No need for cloud when you have wing</title>
+  <meta property="og:title" content="File Whizz • No need for cloud when you have wing">
+  <meta name="twitter:title" content="File Whizz • No need for cloud when you have wing">
+  <meta name="description" content="Peer-to-peer file transfers in your web browser." />
+  <meta property="og:description" content="Peer-to-peer file transfers in your web browser.">
+  <meta name="twitter:description" content="Peer-to-peer file transfers in your web browser.">
+  <meta property="og:url" content="https://file.klemek.fr/">
+  <meta property="og:site_name" content="https://file.klemek.fr/">
   <meta property="og:image" content="https://file.klemek.fr/preview.jpg">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
+  <meta name="twitter:image" content="https://file.klemek.fr/preview.jpg" />
 </head>
 
 <body data-theme="night" class="min-h-screen flex flex-col">
@@ -106,18 +110,6 @@
       </p>
     </aside>
   </footer>
-  <!--
-    <div>
-      <template v-if="isServer">
-        <template v-for="client in server.clients">
-          <label>{{ client.userAgent ?? client.id }} - {{ client.status }}</label><br>
-          <progress :value="client.sent" :max="downloadTotal" aria-busy="!client.connected"></progress>
-          <br>
-          <br>
-        </template>
-      </template>
-    </div>
-     -->
 </body>
 
 </html>
