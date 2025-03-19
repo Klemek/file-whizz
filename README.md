@@ -3,6 +3,8 @@
 
 ### [Tool link](https://file.klemek.fr/)
 
+![](./preview.jpg)
+
 ## Roadmap
 
 * [x] Clean project
