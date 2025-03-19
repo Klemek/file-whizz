@@ -48,7 +48,8 @@
           </div>
           <div class="mt-2 w-full">
             <div class="inline-grid *:[grid-area:1/1] align-middle mr-1">
-              <div :class="`status status-${statusColor(status)} status-lg animate-ping`"></div>
+              <div v-if="statusBlinking(status)" :class="`status status-${statusColor(status)} status-lg animate-ping`">
+              </div>
               <div :class="`status status-${statusColor(status)} status-lg`"></div>
             </div> {{ status }}
           </div>
@@ -67,14 +68,18 @@
             <div v-if="serverIsReady" @click="onShare" class="mt-2 w-full btn btn-primary">
               <i icon="share-2"></i> {{ serverShareText }}
             </div>
-            <ul v-if="serverIsReady && server.clients.length"
-              class="mt-2 list bg-base-100 rounded-box shadow-md text-left">
+            <ul v-if="serverIsReady && server.clients.length" class="mt-2 -mx-10 -mb-10 list rounded-box text-left">
               <li class="p-4 pb-2 text-xs opacity-60 tracking-wide">Connected peers</li>
               <li class="list-row" v-for="client in server.clients" v-bind:key="client.id">
                 <div class="list-col-grow">
                   <div>{{ client.userAgent ?? client.id }}</div>
                   <div>
-                    <div :class="`status status-${statusColor(client.status)}`"></div> {{ client.status }}
+                    <div class="inline-grid *:[grid-area:1/1] align-middle mr-1">
+                      <div v-if="statusBlinking(client.status)"
+                        :class="`status status-${statusColor(client.status)} animate-ping`">
+                      </div>
+                      <div :class="`status status-${statusColor(client.status)}`"></div>
+                    </div> {{ client.status }}
                   </div>
                   <progress :value="client.sent" :max="fileSize" aria-busy="!client.connected" class="progress"
                     :class="client.sent >= fileSize ? 'progress-success' : 'progress-primary'"></progress>

@@ -85,6 +85,7 @@ const MESSAGE_TYPE = {
   ClientInfo: "client-info",
   ClientSeek: "client-seek",
   ClientDone: "client-done",
+  Ping: "ping",
 };
 
 const STATUS = {
@@ -108,12 +109,79 @@ const STATUS_COLOR = {
   [STATUS.ClientConnecting]: "info",
   [STATUS.ClientWaiting]: "info",
   [STATUS.ClientReady]: "success",
-  [STATUS.ClientDownloading]: "info",
+  [STATUS.ClientDownloading]: "primary",
   [STATUS.ClientDownloaded]: "success",
   [STATUS.ClientDisconnected]: "neutral",
 };
 
+const CONNECTED_STATUSES = [
+  STATUS.Connecting,
+  STATUS.ServerNoFile,
+  STATUS.ServerReady,
+  STATUS.ClientConnecting,
+  STATUS.ClientWaiting,
+  STATUS.ClientReady,
+];
+
+const PEER_ERROR = {
+  /**
+   * The client's browser does not support some or all WebRTC features that you are trying to use.
+   */
+  BrowserIncompatible: "browser-incompatible",
+  /**
+   * You've already disconnected this peer from the server and can no longer make any new connections on it.
+   */
+  Disconnected: "disconnected",
+  /**
+   * The ID passed into the Peer constructor contains illegal characters.
+   */
+  InvalidID: "invalid-id",
+  /**
+   * The API key passed into the Peer constructor contains illegal characters or is not in the system (cloud server only).
+   */
+  InvalidKey: "invalid-key",
+  /**
+   * Lost or cannot establish a connection to the signalling server.
+   */
+  Network: "network",
+  /**
+   * The peer you're trying to connect to does not exist.
+   */
+  PeerUnavailable: "peer-unavailable",
+  /**
+   * PeerJS is being used securely, but the cloud server does not support SSL. Use a custom PeerServer.
+   */
+  SslUnavailable: "ssl-unavailable",
+  /**
+   * Unable to reach the server.
+   */
+  ServerError: "server-error",
+  /**
+   * An error from the underlying socket.
+   */
+  SocketError: "socket-error",
+  /**
+   * The underlying socket closed unexpectedly.
+   */
+  SocketClosed: "socket-closed",
+  /**
+   * The ID passed into the Peer constructor is already taken.
+   *
+   * :::caution
+   * This error is not fatal if your peer has open peer-to-peer connections.
+   * This can happen if you attempt to {@apilink Peer.reconnect} a peer that has been disconnected from the server,
+   * but its old ID has now been taken.
+   * :::
+   */
+  UnavailableID: "unavailable-id",
+  /**
+   * Native WebRTC errors.
+   */
+  WebRTC: "webrtc",
+};
+
 const MAX_CHUNK_SIZE = 12 * 1024;
+const MAX_DELAY_PING = 5000;
 
 const app = createApp({
   data() {
@@ -139,6 +207,7 @@ const app = createApp({
         downloadEnd: null,
         received: [],
         buffer: null,
+        lastMessage: null,
       },
     };
   },
@@ -148,7 +217,7 @@ const app = createApp({
     },
     serverIsReady() {
       return (
-        this.error !== null && this.canConnect && this.server.data !== null
+        this.error === null && this.canConnect && this.server.data !== null
       );
     },
     serverShareText() {
@@ -162,7 +231,7 @@ const app = createApp({
     },
     clientIsReady() {
       return (
-        this.error !== null &&
+        this.error === null &&
         this.canConnect &&
         this.client.connection !== null &&
         this.client.buffer !== null &&
@@ -216,6 +285,9 @@ const app = createApp({
       const time =
         (this.client.downloadEnd ?? new Date()) - this.client.downloadStart;
       const speed = this.clientDownloadProgress / time;
+      if (speed <= 0) {
+        return "Unknown";
+      }
       const remainingBytes = this.fileSize - this.clientDownloadProgress;
       const remainingTime = remainingBytes / speed;
       return `${utils.prettyTime(remainingTime)}`;
@@ -247,6 +319,9 @@ const app = createApp({
       if (uuidRegex.test(remoteId)) {
         this.isServer = false;
         this.client.remoteId = remoteId;
+      } else if (remoteId !== "") {
+        this.isServer = false;
+        this.error = "Invalid link";
       }
     },
     initPeer() {
@@ -280,6 +355,14 @@ const app = createApp({
       this.peer.on("error", this.onPeerError);
     },
     initServerConnection(conn) {
+      const index = this.initServerClient(conn);
+      conn.on("open", () => this.onServerConnectionOpen(index));
+      conn.on("close", () => this.onServerConnectionClose(index));
+      conn.on("data", (data) => this.onServerConnectionData(index, data));
+      conn.on("error", (err) => this.onServerConnectionError(index, err));
+      this.initServerWatch(index);
+    },
+    initServerClient(conn) {
       let index = this.server.clients.findIndex(
         (client) => client.id === conn.peer
       );
@@ -291,6 +374,7 @@ const app = createApp({
         connected: false,
         status: STATUS.ClientConnecting,
         userAgent: null,
+        lastMessage: new Date(),
       };
       if (index === -1) {
         index = this.server.clients.length;
@@ -298,10 +382,20 @@ const app = createApp({
       } else {
         this.server.clients[index] = clientData;
       }
-      conn.on("open", () => this.onServerConnectionOpen(index));
-      conn.on("close", () => this.onServerConnectionClose(index));
-      conn.on("data", (data) => this.onServerConnectionData(index, data));
-      conn.on("error", (err) => this.onServerConnectionError(index, err));
+      return index;
+    },
+    initServerWatch(index) {
+      setInterval(() => {
+        if (!this.error && this.server.clients[index].connected) {
+          this.sendServerPing(index);
+          if (
+            new Date() - this.server.clients[index].lastMessage >
+            MAX_DELAY_PING
+          ) {
+            this.onServerConnectionClose(index);
+          }
+        }
+      }, 1000);
     },
     initClientConnection(conn) {
       this.client.connection = conn;
@@ -309,6 +403,17 @@ const app = createApp({
       conn.on("close", this.onClientConnectionClose);
       conn.on("data", this.onClientConnectionData);
       conn.on("error", this.onClientConnectionError);
+      this.initClientWatch();
+    },
+    initClientWatch() {
+      setInterval(() => {
+        if (!this.error && this.client.connected) {
+          this.sendClientPing();
+          if (new Date() - this.client.lastMessage > MAX_DELAY_PING) {
+            this.onClientConnectionClose();
+          }
+        }
+      }, 1000);
     },
     clientCreateStream() {
       try {
@@ -334,14 +439,16 @@ const app = createApp({
     statusColor(status) {
       return STATUS_COLOR[status];
     },
+    statusBlinking(status) {
+      return CONNECTED_STATUSES.includes(status);
+    },
     // PEER EVENTS
     onPeerOpen(id) {
       this.localId = id;
-      this.error = null;
       if (this.isServer) {
         this.server.url = `${window.location.href}?s=${id}`;
         utils.makeQrCode(this.$refs.qrcode, this.server.url);
-      } else {
+      } else if (this.error === null) {
         this.clientOpenConnection();
       }
     },
@@ -351,15 +458,34 @@ const app = createApp({
       }
     },
     onPeerClose() {
+      // Window shutting down
       this.peer = null;
     },
     onPeerDisconnected() {
-      this.peer.reconnect();
+      if (this.peer) {
+        this.error = `Disconnected.<br>Reconnecting...`;
+        this.peer.reconnect();
+      }
     },
     onPeerError(err) {
-      this.error = `${err.type}.<br>Reconnecting...`;
-      this.peer = null;
-      setTimeout(this.initPeer, 1000);
+      switch (err.type) {
+        case PEER_ERROR.PeerUnavailable:
+          if (!this.isServer) {
+            this.error = `This link is no longer available`;
+          }
+          break;
+        case PEER_ERROR.SocketClosed:
+          if (!this.isServer) {
+            this.error = `The remote peer closed the page`;
+          }
+          break;
+        default:
+          if (this.peer) {
+            this.error = `${err.type}.<br>Reconnecting...`;
+            this.peer.reconnect();
+          }
+          break;
+      }
     },
     // SERVER CONNECTION EVENTS
     onServerConnectionOpen(index) {
@@ -368,7 +494,10 @@ const app = createApp({
       this.sendServerInfo(index);
     },
     onServerConnectionData(index, data) {
+      this.server.clients[index].lastMessage = new Date();
       switch (data.type) {
+        case MESSAGE_TYPE.Ping:
+          break;
         case MESSAGE_TYPE.ClientInfo:
           this.handleClientInfo(index, data);
           break;
@@ -385,9 +514,11 @@ const app = createApp({
     },
     onServerConnectionClose(index) {
       this.server.clients[index].status = STATUS.ClientDisconnected;
+      this.server.clients[index].connected = false;
     },
     onServerConnectionError(index) {
       this.server.clients[index].status = STATUS.Error;
+      this.server.clients[index].connected = false;
     },
     // CLIENT CONNECTION EVENTS
     onClientConnectionOpen() {
@@ -395,7 +526,10 @@ const app = createApp({
       this.sendClientInfo();
     },
     onClientConnectionData(data) {
+      this.client.lastMessage = new Date();
       switch (data.type) {
+        case MESSAGE_TYPE.Ping:
+          break;
         case MESSAGE_TYPE.ServerInfo:
           this.handleServerInfo(data);
           break;
@@ -412,12 +546,30 @@ const app = createApp({
     },
     onClientConnectionClose() {
       this.client.connection = null;
+      if (!this.clientFinished) {
+        this.error = `The remote peer closed the page`;
+      }
     },
     onClientConnectionError(err) {
-      this.error = `${err.type}.<br>Reconnecting...`;
-      setTimeout(this.clientOpenConnection, 1000);
+      switch (err.type) {
+        case PEER_ERROR.PeerUnavailable:
+          this.error = `This link is no longer available`;
+          break;
+        case PEER_ERROR.SocketClosed:
+          this.error = `The remote peer closed the page`;
+          break;
+        default:
+          this.error = `${err.type}.<br>Reconnecting...`;
+          setTimeout(this.clientOpenConnection);
+          break;
+      }
     },
     // EXCHANGES
+    sendServerPing(index) {
+      this.server.clients[index].connection.send({
+        type: MESSAGE_TYPE.Ping,
+      });
+    },
     sendServerInfo(index) {
       this.server.clients[index].connection.send({
         type: MESSAGE_TYPE.ServerInfo,
@@ -464,6 +616,11 @@ const app = createApp({
         this.sendClientDone();
         this.clientDownloadFile();
       }
+    },
+    sendClientPing() {
+      this.client.connection.send({
+        type: MESSAGE_TYPE.Ping,
+      });
     },
     sendClientInfo() {
       this.client.connection.send({

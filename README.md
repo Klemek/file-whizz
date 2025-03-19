@@ -15,6 +15,6 @@
 * [x] QRCode
 * [x] Fix turn server settings to work on all servers
 * [x] More cleaning
-* [ ] Fix edge cases
+* [x] Fix edge cases
 * [ ] Cancel download
 
