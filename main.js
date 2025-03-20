@@ -121,6 +121,7 @@ const CONNECTED_STATUSES = [
   STATUS.ServerNoFile,
   STATUS.ServerReady,
   STATUS.ClientConnecting,
+  STATUS.ClientDownloading,
   STATUS.ClientWaiting,
   STATUS.ClientReady,
 ];
@@ -183,6 +184,7 @@ const PEER_ERROR = {
 };
 
 const MAX_CHUNK_SIZE = 12 * 1024;
+const MAX_BATCH_SIZE = 4096;
 const MIN_DELAY_PING = 1000;
 const MAX_DELAY_PING = MIN_DELAY_PING * 5;
 
@@ -450,6 +452,29 @@ const app = createApp({
       link.download = this.fileName;
       link.click();
     },
+    clientGetRemaining() {
+      const ranges = [];
+      let currentMin = null;
+      for (let index = 0; index < this.fileSize; index += MAX_CHUNK_SIZE) {
+        if (!this.client.received.includes(index)) {
+          if (currentMin === null) {
+            currentMin = index;
+          }
+        } else if (currentMin !== null) {
+          ranges.push({
+            from: currentMin,
+            to: index - MAX_CHUNK_SIZE,
+          });
+        }
+      }
+      if (currentMin !== null) {
+        ranges.push({
+          from: currentMin,
+          to: this.fileSize,
+        });
+      }
+      return ranges;
+    },
     clientOpenConnection() {
       this.initClientConnection(
         this.peer.connect(this.client.remoteId, { reliable: false })
@@ -496,6 +521,12 @@ const app = createApp({
         case PEER_ERROR.SocketClosed:
           if (!this.isServer) {
             this.error = `The remote peer closed the page`;
+          }
+          break;
+        case PEER_ERROR.Network:
+          if (this.peer) {
+            this.error = `Lost connection to server.<br>Reconnecting...`;
+            this.peer.reconnect();
           }
           break;
         default:
@@ -626,14 +657,9 @@ const app = createApp({
       this.server.clients[index].lastSent = new Date();
     },
     handleServerDone() {
-      const indexes = [];
-      for (let index = 0; index < this.fileSize; index += MAX_CHUNK_SIZE) {
-        if (!this.client.received.includes(index)) {
-          indexes.push(index);
-        }
-      }
-      if (indexes.length) {
-        this.sendClientSeek(indexes);
+      const ranges = this.clientGetRemaining();
+      if (ranges.length) {
+        this.sendClientSeek(ranges);
       } else {
         this.client.downloadEnd = new Date();
         this.sendClientDone();
@@ -656,28 +682,29 @@ const app = createApp({
     handleClientInfo(index, data) {
       this.server.clients[index].userAgent = utils.userAgent(data.userAgent);
     },
-    sendClientSeek(indexes = null) {
+    sendClientSeek(ranges) {
       this.client.connection.send({
         type: MESSAGE_TYPE.ClientSeek,
-        indexes,
+        ranges,
       });
       this.client.lastSent = new Date();
     },
     handleClientSeek(index, data) {
       this.server.clients[index].status = STATUS.ClientDownloading;
-      if (data.indexes) {
-        data.indexes.forEach((chunkIndex) => {
-          setTimeout(() => this.sendServerChunk(index, chunkIndex));
-        });
-      } else {
+      let sent = 0;
+      data.ranges.forEach((range) => {
         for (
-          let chunkIndex = 0;
-          chunkIndex < this.fileSize;
+          let chunkIndex = range.from;
+          chunkIndex <= range.to;
           chunkIndex += MAX_CHUNK_SIZE
         ) {
-          setTimeout(() => this.sendServerChunk(index, chunkIndex));
+          if (sent >= MAX_BATCH_SIZE) {
+            break;
+          }
+          this.sendServerChunk(index, chunkIndex);
+          sent += 1;
         }
-      }
+      });
       setTimeout(() => this.sendServerDone(index));
     },
     sendClientDone() {
@@ -718,7 +745,8 @@ const app = createApp({
       }
       this.client.downloadStart = new Date();
       this.client.downloadEnd = null;
-      this.sendClientSeek();
+      const indexes = this.clientGetRemaining();
+      this.sendClientSeek(indexes);
     },
     onShare() {
       if (navigator.canShare && navigator.canShare()) {

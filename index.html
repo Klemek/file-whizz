@@ -32,7 +32,7 @@
   <meta name="twitter:image" content="https://file.klemek.fr/preview.jpg" />
 </head>
 
-<body data-theme="bumblebee" class="min-h-screen flex flex-col w-screen overflow-y-hidden">
+<body data-theme="bumblebee" class="min-h-screen flex flex-col w-screen">
   <div class="hero flex-grow bg-base-200">
     <main id="app" class="hero-content text-center" style="display: none">
       <div class="card w-full max-w-sm bg-base-100/95 shadow-sm">
@@ -56,7 +56,7 @@
           <div v-if="error" class="mt-2 text-error" v-html="error">
           </div>
           <div v-if="fileName" class="mt-2 w-full truncate">
-            <code>{{ fileName }}<br>({{ prettyFileSize }})</code>
+            <code class="font-bold">{{ fileName }}<br>({{ prettyFileSize }})</code>
           </div>
           <template v-if="isServer">
             <div v-if="serverCanUpload" class="my-t w-full">
