@@ -32,10 +32,10 @@
   <meta name="twitter:image" content="https://file.klemek.fr/preview.jpg" />
 </head>
 
-<body data-theme="bumblebee" class="min-h-screen flex flex-col">
+<body data-theme="bumblebee" class="min-h-screen flex flex-col w-screen overflow-y-hidden">
   <div class="hero flex-grow bg-base-200">
     <main id="app" class="hero-content text-center" style="display: none">
-      <div class="card w-96 bg-base-100/95 card-xl shadow-sm">
+      <div class="card w-full max-w-sm bg-base-100/95 shadow-sm">
         <div class="card-body">
           <h2 class="card-title text-4xl">🐝 File Whizz</h2>
           <div v-if="isServer" class="mt-2 w-full italic">
