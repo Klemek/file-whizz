@@ -92,6 +92,7 @@ const STATUS = {
   Error: "Error",
   Connecting: "Acquiring ID...",
   ServerNoFile: "Online",
+  ServerReading: "Reading file...",
   ServerReady: "Ready to send file",
   ClientConnecting: "Connecting to peer...",
   ClientWaiting: "Waiting for file info...",
@@ -105,6 +106,7 @@ const STATUS_COLOR = {
   [STATUS.Error]: "error",
   [STATUS.Connecting]: "neutral",
   [STATUS.ServerNoFile]: "info",
+  [STATUS.ServerReading]: "warning",
   [STATUS.ServerReady]: "success",
   [STATUS.ClientConnecting]: "info",
   [STATUS.ClientWaiting]: "info",
@@ -196,6 +198,7 @@ const app = createApp({
       server: {
         clients: [],
         url: null,
+        reading: false,
         data: null,
         copied: false,
       },
@@ -218,6 +221,11 @@ const app = createApp({
     serverIsReady() {
       return (
         this.error === null && this.canConnect && this.server.data !== null
+      );
+    },
+    serverCanUpload() {
+      return (
+        this.error === null && this.server.data === null && !this.server.reading
       );
     },
     serverShareText() {
@@ -255,6 +263,7 @@ const app = createApp({
       return this.isServer ? this.serverStatus : this.clientStatus;
     },
     serverStatus() {
+      if (this.server.reading) return STATUS.ServerReading;
       if (!this.server.data) return STATUS.ServerNoFile;
       return STATUS.ServerReady;
     },
@@ -664,23 +673,26 @@ const app = createApp({
       this.server.clients[index].done = true;
       this.server.clients[index].status = STATUS.ClientDisconnected;
     },
+    // FILE READER EVENTS
+    onReaderLoad(reader) {
+      this.server.data = reader.result;
+      this.server.reading = false;
+    },
+    onReaderError() {
+      this.error = "Error reading file";
+    },
     // UI EVENTS
     onFileChange(event) {
       const [file] = event.target.files;
-      if (!file) {
-        return;
+      if (file) {
+        this.server.reading = true;
+        this.fileName = file.name;
+        this.fileSize = file.size;
+        const reader = new FileReader();
+        reader.onload = () => this.onReaderLoad(reader);
+        reader.onerror = this.onReaderError;
+        reader.readAsArrayBuffer(file);
       }
-      this.fileName = file.name;
-      this.fileSize = file.size;
-      this.server.data = null;
-      const reader = new FileReader();
-      reader.onload = () => {
-        this.server.data = reader.result;
-      };
-      reader.onerror = () => {
-        this.error = "Error reading file";
-      };
-      reader.readAsArrayBuffer(file);
     },
     onDownload() {
       if (!this.clientIsReady) {
