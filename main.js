@@ -183,7 +183,8 @@ const PEER_ERROR = {
 };
 
 const MAX_CHUNK_SIZE = 12 * 1024;
-const MAX_DELAY_PING = 5000;
+const MIN_DELAY_PING = 1000;
+const MAX_DELAY_PING = MIN_DELAY_PING * 5;
 
 const app = createApp({
   data() {
@@ -210,7 +211,8 @@ const app = createApp({
         downloadEnd: null,
         received: [],
         buffer: null,
-        lastMessage: null,
+        lastSent: null,
+        lastReceived: null,
       },
     };
   },
@@ -383,7 +385,8 @@ const app = createApp({
         connected: false,
         status: STATUS.ClientConnecting,
         userAgent: null,
-        lastMessage: new Date(),
+        lastSent: new Date(),
+        lastReceived: new Date(),
       };
       if (index === -1) {
         index = this.server.clients.length;
@@ -396,9 +399,14 @@ const app = createApp({
     initServerWatch(index) {
       setInterval(() => {
         if (!this.error && this.server.clients[index].connected) {
-          this.sendServerPing(index);
           if (
-            new Date() - this.server.clients[index].lastMessage >
+            new Date() - this.server.clients[index].lastSent >
+            MIN_DELAY_PING
+          ) {
+            this.sendServerPing(index);
+          }
+          if (
+            new Date() - this.server.clients[index].lastReceived >
             MAX_DELAY_PING
           ) {
             this.onServerConnectionClose(index);
@@ -417,8 +425,10 @@ const app = createApp({
     initClientWatch() {
       setInterval(() => {
         if (!this.error && this.client.connected) {
-          this.sendClientPing();
-          if (new Date() - this.client.lastMessage > MAX_DELAY_PING) {
+          if (new Date() - this.client.lastSent > MIN_DELAY_PING) {
+            this.sendClientPing();
+          }
+          if (new Date() - this.client.lastReceived > MAX_DELAY_PING) {
             this.onClientConnectionClose();
           }
         }
@@ -503,7 +513,7 @@ const app = createApp({
       this.sendServerInfo(index);
     },
     onServerConnectionData(index, data) {
-      this.server.clients[index].lastMessage = new Date();
+      this.server.clients[index].lastReceived = new Date();
       switch (data.type) {
         case MESSAGE_TYPE.Ping:
           break;
@@ -535,7 +545,7 @@ const app = createApp({
       this.sendClientInfo();
     },
     onClientConnectionData(data) {
-      this.client.lastMessage = new Date();
+      this.client.lastReceived = new Date();
       switch (data.type) {
         case MESSAGE_TYPE.Ping:
           break;
@@ -578,6 +588,7 @@ const app = createApp({
       this.server.clients[index].connection.send({
         type: MESSAGE_TYPE.Ping,
       });
+      this.server.clients[index].lastSent = new Date();
     },
     sendServerInfo(index) {
       this.server.clients[index].connection.send({
@@ -585,6 +596,7 @@ const app = createApp({
         fileName: this.fileName,
         fileSize: this.fileSize,
       });
+      this.server.clients[index].lastSent = new Date();
     },
     handleServerInfo(data) {
       this.fileName = data.fileName;
@@ -598,6 +610,7 @@ const app = createApp({
         bytes: this.server.data.slice(chunkIndex, chunkIndex + MAX_CHUNK_SIZE),
       });
       this.server.clients[index].sent += MAX_CHUNK_SIZE;
+      this.server.clients[index].lastSent = new Date();
     },
     handleServerChunk(data) {
       new Uint8Array(this.client.buffer).set(
@@ -610,6 +623,7 @@ const app = createApp({
       this.server.clients[index].connection.send({
         type: MESSAGE_TYPE.ServerDone,
       });
+      this.server.clients[index].lastSent = new Date();
     },
     handleServerDone() {
       const indexes = [];
@@ -630,12 +644,14 @@ const app = createApp({
       this.client.connection.send({
         type: MESSAGE_TYPE.Ping,
       });
+      this.client.lastSent = new Date();
     },
     sendClientInfo() {
       this.client.connection.send({
         type: MESSAGE_TYPE.ClientInfo,
         userAgent: navigator.userAgent,
       });
+      this.client.lastSent = new Date();
     },
     handleClientInfo(index, data) {
       this.server.clients[index].userAgent = utils.userAgent(data.userAgent);
@@ -645,6 +661,7 @@ const app = createApp({
         type: MESSAGE_TYPE.ClientSeek,
         indexes,
       });
+      this.client.lastSent = new Date();
     },
     handleClientSeek(index, data) {
       this.server.clients[index].status = STATUS.ClientDownloading;
@@ -667,6 +684,7 @@ const app = createApp({
       this.client.connection.send({
         type: MESSAGE_TYPE.ClientDone,
       });
+      this.client.lastSent = new Date();
     },
     handleClientDone(index) {
       this.server.clients[index].connection.close();
