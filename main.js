@@ -202,6 +202,7 @@ const app = createApp({
         clients: [],
         url: null,
         reading: false,
+        readingProgress: 0,
         data: null,
         copied: false,
       },
@@ -722,8 +723,15 @@ const app = createApp({
     onReaderLoad(reader) {
       this.server.data = reader.result;
       this.server.reading = false;
+      this.server.readingProgress = 100;
+    },
+    onReaderProgress(event) {
+      if (event.lengthComputable) {
+        this.server.readingProgress = (100 * event.loaded) / event.total;
+      }
     },
     onReaderError() {
+      this.server.readingProgress = 0;
       this.error = "Error reading file";
     },
     // UI EVENTS
@@ -736,6 +744,7 @@ const app = createApp({
         const reader = new FileReader();
         reader.onload = () => this.onReaderLoad(reader);
         reader.onerror = this.onReaderError;
+        reader.onprogress = this.onReaderProgress;
         reader.readAsArrayBuffer(file);
       }
     },

@@ -63,6 +63,8 @@
               <label for="file-input" class="btn btn-primary w-full"><i icon="file-up"></i> Select file</label>
               <input @change="onFileChange" id="file-input" type="file" class="hidden" />
             </div>
+            <progress v-if="server.reading || serverIsReady" :value="server.readingProgress" max="100" class="progress"
+              :class="server.readingProgress >= 100 ? 'progress-success' : 'progress-primary'"></progress>
             <div ref="qrcode" id="qrcode" :class="serverIsReady ? '' : 'hidden'" class="w-full max-w-64 mx-auto mt-2">
             </div>
             <div v-if="serverIsReady" @click="onShare" class="mt-2 w-full btn btn-primary">
